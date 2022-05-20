@@ -1,1 +1,2 @@
-export declare const Greeter: (name: string) => string;
+export { ESol } from './eSol';
+export { ESolConfig } from './config';
