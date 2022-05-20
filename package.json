@@ -1,6 +1,6 @@
 {
   "name": "@everstake/eversol-ts-sdk",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Eversol ts sdk",
   "main": "eversol-ts-sdk/index.js",
   "types": "eversol-ts-sdk/index.d.js",
@@ -16,8 +16,13 @@
     "url": "git+https://github.com/everstake/eversol-ts-sdk.git"
   },
   "keywords": [
-    "Eversol",
-    "Solana"
+    "eversol",
+    "solana",
+    "blockchain",
+    "stake pool",
+    "defi",
+    "staking",
+    "SDK"
   ],
   "author": "dh@eversol",
   "license": "ISC",

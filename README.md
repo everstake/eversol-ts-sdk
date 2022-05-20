@@ -13,7 +13,7 @@ Eversol is a liquid staking protocol built on Solana. Eversol's main concept is 
 ## Installation
 
 ```bash
-$ npm install @eversol/eversol-ts-sdk
+$ npm install @everstake/eversol-ts-sdk
 ```
 
 ### Initialize the library
@@ -21,7 +21,7 @@ $ npm install @eversol/eversol-ts-sdk
 Import the main client class ESol and initialize it with the desired cluster type:
 
 ```ts
-import { ESol } from '@eversol/eversol-ts-sdk';
+import { ESol } from '@everstake/eversol-ts-sdk';
 
 // initializes for mainnet-beta
 const eSol = new ESol('mainnet-beta');

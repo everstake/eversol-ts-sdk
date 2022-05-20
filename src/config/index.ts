@@ -1,9 +1,6 @@
 import { PublicKey, Connection, clusterApiUrl } from '@solana/web3.js';
 import { StakePoolProgram } from '../service/stakepool-program';
 
-const TESTNET_PROVIDER_URL = 'https://api.testnet.solana.com';
-const MAINNET_PROVIDER_URL = 'https://api.mainnet-beta.solana.com';
-
 export type ClusterType = 'mainnet-beta' | 'testnet';
 
 const TESTNET_STAKEPOOL_ACCOUNT = '4QRsVADHap1AgtpryYB2vz4htG3ysJcaXFkcFqkGjaF1';
