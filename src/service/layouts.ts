@@ -1,4 +1,4 @@
-import { publicKey, struct, u32, u64, u8, option, vec, bool } from '@project-serum/borsh';
+import { publicKey, struct, u32, u64, u16, u8, option, vec, bool } from '@project-serum/borsh';
 import { PublicKey } from '@solana/web3.js';
 import * as BN from 'bn.js';
 
@@ -28,6 +28,20 @@ export interface Lockup {
   epoch: number;
   custodian: PublicKey;
 }
+
+export interface MetricsDepositReferrerCounter {
+  accountGroup: BN;
+  counterForGroup: BN;
+  flushedGroup: BN;
+  flushedCounter: BN;
+}
+
+export const METRICS_DEPOSIT_REFERRER_LAYOUT = struct<MetricsDepositReferrerCounter>([
+  u64('accountGroup'),
+  u16('counterForGroup'),
+  u64('flushedGroup'),
+  u16('flushedCounter'),
+]);
 
 export interface TokenAccount {
   mint: PublicKey;
