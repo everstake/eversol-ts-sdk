@@ -3,13 +3,13 @@ import { PublicKey, Transaction, Keypair, SystemProgram, StakeProgram, } from '@
 import { lamportsToSol, solToLamports } from './utils';
 import { getStakePoolAccount, addAssociatedTokenAccount, findWithdrawAuthorityProgramAddress, getTokenAccount, prepareWithdrawAccounts, calcLamportsWithdrawAmount, newStakeAccount, } from './service/service';
 import { StakePoolProgram } from './service/stakepool-program';
-import { DAO_STATE_LAYOUT, COMMUNITY_TOKEN_LAYOUT } from './service/layouts';
+import { DAO_STATE_LAYOUT, COMMUNITY_TOKEN_LAYOUT, METRICS_DEPOSIT_REFERRER_LAYOUT } from './service/layouts';
 import { ASSOCIATED_TOKEN_PROGRAM_ID, Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 export class ESol {
     constructor(clusterType = 'testnet') {
         this.config = new ESolConfig(clusterType);
     }
-    async depositSolTransaction(userAddress, lamports, poolTokenReceiverAccount, daoCommunityTokenReceiverAccount, referrerTokenAccount) {
+    async depositSolTransaction(userAddress, lamports, referrerAccount, poolTokenReceiverAccount, daoCommunityTokenReceiverAccount, referrerTokenAccount) {
         const CONNECTION = this.config.connection;
         const userSolBalance = await CONNECTION.getBalance(userAddress, 'confirmed');
         if (userSolBalance < lamports) {
@@ -87,6 +87,29 @@ export class ESol {
                 communityTokenStakingRewardsCounterDTO: communityStakingRewardsCounterPubkey,
             }));
         }
+        // referrer part
+        const referrerList = this.config.referrerListPrefix;
+        const referrerListDtoInfo = await PublicKey.findProgramAddress([Buffer.from(referrerList), stakePoolAddress.toBuffer(), StakePoolProgram.programId.toBuffer()], StakePoolProgram.programId);
+        const referrerListDtoPubkey = referrerListDtoInfo[0];
+        const referrerListDtoAccount = await CONNECTION.getAccountInfo(referrerListDtoPubkey);
+        if (!referrerListDtoAccount) {
+            throw Error('Referer list account doesn`t exist');
+        }
+        console.log(referrerListDtoAccount, 'referrerListDtoAccount', 'referrerListDtoAccount', referrerListDtoAccount);
+        const metricCounter = this.config.metricCounterPrefix;
+        const metricCounterDtoInfo = await PublicKey.findProgramAddress([Buffer.from(metricCounter), stakePoolAddress.toBuffer(), StakePoolProgram.programId.toBuffer()], StakePoolProgram.programId);
+        const metricCounterDtoPubkey = metricCounterDtoInfo[0];
+        const metricCounterDtoAccount = await CONNECTION.getAccountInfo(metricCounterDtoPubkey);
+        if (!metricCounterDtoAccount) {
+            throw Error('Metric counter doesn`t exist');
+        }
+        const metricCounterInfo = METRICS_DEPOSIT_REFERRER_LAYOUT.decode(metricCounterDtoAccount);
+        const counterId = metricCounterInfo.counterForGroup + (metricCounterInfo.accountGroup - 1) * 100;
+        const metric = this.config.metricPrefix;
+        const metricsDepositReferrerDtoAccountAddress = await PublicKey.findProgramAddress([Buffer.from(metric), stakePoolAddress.toBuffer(), counterId.toBuffer(), StakePoolProgram.programId.toBuffer()], StakePoolProgram.programId);
+        const metricsDepositReferrerDtoAccount = metricsDepositReferrerDtoAccountAddress[0];
+        console.log(metricCounterDtoPubkey, 'metricCounterDtoPubkey', 'metricCounterDtoAccount', metricCounterDtoAccount);
+        // check if referrerAccount is in referrerListDtoAccount
         instructions.push(SystemProgram.transfer({
             fromPubkey: userAddress,
             toPubkey: userSolTransfer.publicKey,
@@ -102,7 +125,7 @@ export class ESol {
             daoCommunityTokenReceiverAccount = await addAssociatedTokenAccount(CONNECTION, userAddress, communityTokenInfo.tokenMint, instructions);
         }
         const withdrawAuthority = await findWithdrawAuthorityProgramAddress(StakePoolProgram.programId, stakePoolAddress);
-        instructions.push(StakePoolProgram.depositSolDaoInstruction({
+        instructions.push(StakePoolProgram.depositSolDaoWithReferrerInstruction({
             daoCommunityTokenReceiverAccount,
             communityTokenStakingRewards: communityTokenStakingRewardsPubkey,
             ownerWallet: userAddress,
@@ -114,9 +137,12 @@ export class ESol {
             lamportsFrom: userSolTransfer.publicKey,
             poolTokensTo: poolTokenReceiverAccount,
             managerFeeAccount: stakePool.account.data.managerFeeAccount,
-            referrerPoolTokensAccount: referrerTokenAccount !== null && referrerTokenAccount !== void 0 ? referrerTokenAccount : poolTokenReceiverAccount,
+            referrerAccount,
             poolMint,
             lamports,
+            referrerList: referrerListDtoPubkey,
+            metricsDepositReferrerDtoAccount,
+            metricsDepositReferrerCounterDtoAccount: metricCounterDtoPubkey,
         }));
         const transaction = new Transaction();
         instructions.forEach((instruction) => transaction.add(instruction));
