@@ -36,7 +36,8 @@ Stake SOL and get your eSOL:
 
 ```ts
 ...
-const depositSolTransaction = await eSol.depositSolTransaction(userAddress, amountLamports)
+const depositSolTransaction = await eSol.depositSolTransaction(userAddress, amountLamports, referrerAccount)
+// referrerAccount - should be exist in referrer list (contact our team to add your address)
 // than sign and send the `transaction`
 ```
 
@@ -61,5 +62,6 @@ const delayedUnstakeTransaction = await eSol.withdrawSolTransaction(userAddress,
 ```
 
 ## Learn more
+
 - [Eversol web](https://eversol.one/)
 - [Eversol docs](https://docs.eversol.one/overview/welcome-to-eversol)

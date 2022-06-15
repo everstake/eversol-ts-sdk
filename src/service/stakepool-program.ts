@@ -518,12 +518,7 @@ export class StakePoolProgram {
    * Public key that identifies the Stake Pool program
    */
   // static programId: PublicKey = new PublicKey("EverSFw9uN5t1V8kS3ficHUcKffSjwpGzUSGd7mgmSks")
-  static programId: PublicKey = new PublicKey('CgymamZFh5aVZhoSRtV2QrEZ58X4N1o2H5ZQPF4L5jj8');
-
-  // testtest CgymamZFh5aVZhoSRtV2QrEZ58X4N1o2H5ZQPF4L5jj8
-  // mainnet EverSFw9uN5t1V8kS3ficHUcKffSjwpGzUSGd7mgmSks
-  // dao-test CgymamZFh5aVZhoSRtV2QrEZ58X4N1o2H5ZQPF4L5jj8
-  // testnet id new 49jTXmoSFDEvMHWZhGxjzfgBU11KCqMhK45itiAoqbpa
+  static programId: PublicKey = new PublicKey('4uvLNZaB1VpeYZsFnXDw7sLrhuLo3psk3ka5ajWtSGgb');
 
   static tokenProgramId: PublicKey = TOKEN_PROGRAM_ID;
 

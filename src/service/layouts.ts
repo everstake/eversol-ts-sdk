@@ -31,9 +31,9 @@ export interface Lockup {
 
 export interface MetricsDepositReferrerCounter {
   accountGroup: BN;
-  counterForGroup: BN;
+  counterForGroup: number;
   flushedGroup: BN;
-  flushedCounter: BN;
+  flushedCounter: number;
 }
 
 export const METRICS_DEPOSIT_REFERRER_LAYOUT = struct<MetricsDepositReferrerCounter>([
@@ -212,3 +212,23 @@ export enum ValidatorStakeInfoStatus {
   DeactivatingTransient,
   ReadyForRemoval,
 }
+
+export interface ReferrerInfo {
+  pubKey: PublicKey;
+}
+
+export interface ReferrerList {
+  accountType: number;
+  maxReferrers: number;
+  referrers: ReferrerInfo[];
+}
+
+export const REFERRER_INFO_LAYOUT = struct<ReferrerInfo>([
+  publicKey("pubKey")
+]);
+
+export const REFERRER_LIST_LAYOUT = struct<ReferrerList>([
+  u8("accountType"),
+  u32("maxReferrers"),
+  vec(REFERRER_INFO_LAYOUT, "referrers"),
+]);

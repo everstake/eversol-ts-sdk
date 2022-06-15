@@ -3,7 +3,7 @@ import { PublicKey, Transaction, Keypair, SystemProgram, StakeProgram, } from '@
 import { lamportsToSol, solToLamports } from './utils';
 import { getStakePoolAccount, addAssociatedTokenAccount, findWithdrawAuthorityProgramAddress, getTokenAccount, prepareWithdrawAccounts, calcLamportsWithdrawAmount, newStakeAccount, } from './service/service';
 import { StakePoolProgram } from './service/stakepool-program';
-import { DAO_STATE_LAYOUT, COMMUNITY_TOKEN_LAYOUT, METRICS_DEPOSIT_REFERRER_LAYOUT } from './service/layouts';
+import { DAO_STATE_LAYOUT, COMMUNITY_TOKEN_LAYOUT, METRICS_DEPOSIT_REFERRER_LAYOUT, REFERRER_LIST_LAYOUT, } from './service/layouts';
 import { ASSOCIATED_TOKEN_PROGRAM_ID, Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 export class ESol {
     constructor(clusterType = 'testnet') {
@@ -95,21 +95,32 @@ export class ESol {
         if (!referrerListDtoAccount) {
             throw Error('Referer list account doesn`t exist');
         }
-        console.log(referrerListDtoAccount, 'referrerListDtoAccount', 'referrerListDtoAccount', referrerListDtoAccount);
+        const referrerListData = REFERRER_LIST_LAYOUT.decode(referrerListDtoAccount === null || referrerListDtoAccount === void 0 ? void 0 : referrerListDtoAccount.data);
+        const referrersListArray = referrerListData.referrers;
+        const isReferrerAccountInList = referrersListArray.some((referrer) => {
+            return referrer.pubKey.toString() === referrerAccount.toString();
+        });
+        if (!isReferrerAccountInList) {
+            throw Error("Public key of referrer account doesn't exist in referrer list");
+        }
         const metricCounter = this.config.metricCounterPrefix;
         const metricCounterDtoInfo = await PublicKey.findProgramAddress([Buffer.from(metricCounter), stakePoolAddress.toBuffer(), StakePoolProgram.programId.toBuffer()], StakePoolProgram.programId);
         const metricCounterDtoPubkey = metricCounterDtoInfo[0];
         const metricCounterDtoAccount = await CONNECTION.getAccountInfo(metricCounterDtoPubkey);
         if (!metricCounterDtoAccount) {
-            throw Error('Metric counter doesn`t exist');
+            throw Error("Metric counter doesn't exist");
         }
-        const metricCounterInfo = METRICS_DEPOSIT_REFERRER_LAYOUT.decode(metricCounterDtoAccount);
+        const metricCounterInfo = METRICS_DEPOSIT_REFERRER_LAYOUT.decode(metricCounterDtoAccount.data);
         const counterId = metricCounterInfo.counterForGroup + (metricCounterInfo.accountGroup - 1) * 100;
+        const counterIdAdapted = counterId.toString();
         const metric = this.config.metricPrefix;
-        const metricsDepositReferrerDtoAccountAddress = await PublicKey.findProgramAddress([Buffer.from(metric), stakePoolAddress.toBuffer(), counterId.toBuffer(), StakePoolProgram.programId.toBuffer()], StakePoolProgram.programId);
+        const metricsDepositReferrerDtoAccountAddress = await PublicKey.findProgramAddress([
+            Buffer.from(metric),
+            stakePoolAddress.toBuffer(),
+            Buffer.from(counterIdAdapted),
+            StakePoolProgram.programId.toBuffer(),
+        ], StakePoolProgram.programId);
         const metricsDepositReferrerDtoAccount = metricsDepositReferrerDtoAccountAddress[0];
-        console.log(metricCounterDtoPubkey, 'metricCounterDtoPubkey', 'metricCounterDtoAccount', metricCounterDtoAccount);
-        // check if referrerAccount is in referrerListDtoAccount
         instructions.push(SystemProgram.transfer({
             fromPubkey: userAddress,
             toPubkey: userSolTransfer.publicKey,
