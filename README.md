@@ -37,7 +37,7 @@ Stake SOL and get your eSOL:
 ```ts
 ...
 const depositSolTransaction = await eSol.depositSolTransaction(userAddress, amountLamports, referrerAccount)
-// referrerAccount - should be exist in referrer list (contact our team to add your address)
+// referrerAccount - should exist in referrer list (contact our team to add your address)
 // than sign and send the `transaction`
 ```
 
@@ -65,3 +65,43 @@ const delayedUnstakeTransaction = await eSol.withdrawSolTransaction(userAddress,
 
 - [Eversol web](https://eversol.one/)
 - [Eversol docs](https://docs.eversol.one/overview/welcome-to-eversol)
+
+export const STAKE_POOL_LAYOUT = struct<StakePool>([
+  // rustEnum(AccountTypeKind, 'accountType'),
+  u8("accountType"),
+  publicKey("manager"),
+  publicKey("staker"),
+  publicKey("stakeDepositAuthority"),
+  u8("stakeWithdrawBumpSeed"),
+  publicKey("validatorList"),
+  publicKey("reserveStake"),
+  publicKey("poolMint"),
+  publicKey("managerFeeAccount"),
+  publicKey("tokenProgramId"),
+  u64("totalLamports"),
+  u64("poolTokenSupply"),
+  u64("lastUpdateEpoch"),
+  struct([u64("unixTimestamp"), u64("epoch"), publicKey("custodian")], "lockup"),
+  struct(feeFields, "epochFee"),
+  option(struct(feeFields), "nextEpochFee"),
+  option(publicKey(), "preferredDepositValidatorVoteAddress"),
+  option(publicKey(), "preferredWithdrawValidatorVoteAddress"),
+  struct(feeFields, "stakeDepositFee"),
+  struct(feeFields, "stakeWithdrawalFee"),
+  option(struct(feeFields), "nextWithdrawalFee"),
+  u8("stakeReferralFee"),
+  option(publicKey(), "solDepositAuthority"),
+  struct(feeFields, "solDepositFee"),
+  u8("solReferralFee"),
+  option(publicKey(), "solWithdrawAuthority"),
+  struct(feeFields, "solWithdrawalFee"),
+  option(struct(feeFields), "nextSolWithdrawalFee"),
+  u64("lastEpochPoolTokenSupply"),
+  u64("lastEpochTotalLamports"),
+  option(struct(rateOfExchangeFields), "rateOfExchange"),
+  publicKey("treasuryFeeAccount"),
+  struct(feeFields, "treasuryFee"),
+  u64("totalLamportsLiquidity"),
+]);
+
+  maxValidatorYieldPerEpochNumerator: BN;

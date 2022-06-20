@@ -108,6 +108,7 @@ export interface StakePool {
   treasuryFeeAccount: PublicKey;
   treasuryFee: Fee;
   totalLamportsLiquidity: BN;
+  maxValidatorYieldPerEpochNumerator: BN;
 }
 
 export const DAO_STATE_LAYOUT = struct<DaoState>([bool('isEnabled')]);
@@ -149,6 +150,7 @@ export const STAKE_POOL_LAYOUT = struct<StakePool>([
   publicKey('treasuryFeeAccount'),
   struct(feeFields, 'treasuryFee'),
   u64('totalLamportsLiquidity'),
+  u32("maxValidatorYieldPerEpochNumerator")
 ]);
 
 export interface ValidatorStakeInfo {
