@@ -4,6 +4,7 @@ import { lamportsToSol, solToLamports } from './utils';
 import { getStakePoolAccount, addAssociatedTokenAccount, findWithdrawAuthorityProgramAddress, getTokenAccount, prepareWithdrawAccounts, calcLamportsWithdrawAmount, newStakeAccount, } from './service/service';
 import { StakePoolProgram } from './service/stakepool-program';
 import { DAO_STATE_LAYOUT, COMMUNITY_TOKEN_LAYOUT, METRICS_DEPOSIT_REFERRER_LAYOUT, REFERRER_LIST_LAYOUT, } from './service/layouts';
+import { TRANSACTION_FEE, RENT_EXEMPTION_FEE } from './service/constants';
 import { ASSOCIATED_TOKEN_PROGRAM_ID, Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 export class ESol {
     constructor(clusterType = 'testnet') {
@@ -12,7 +13,9 @@ export class ESol {
     async depositSolTransaction(userAddress, lamports, referrerAccount, poolTokenReceiverAccount, daoCommunityTokenReceiverAccount, referrerTokenAccount) {
         const CONNECTION = this.config.connection;
         const userSolBalance = await CONNECTION.getBalance(userAddress, 'confirmed');
-        if (userSolBalance < lamports) {
+        const transactionFee = solToLamports(TRANSACTION_FEE);
+        const lamportsWithFee = lamports + transactionFee;
+        if (userSolBalance < lamportsWithFee) {
             throw new Error(`Not enough SOL to deposit into pool. Maximum deposit amount is ${lamportsToSol(userSolBalance)} SOL.`);
         }
         const stakePoolAddress = this.config.eSOLStakePoolAddress;
@@ -168,7 +171,13 @@ export class ESol {
         const solReceiver = userAddress;
         const stakePoolAddress = this.config.eSOLStakePoolAddress;
         const stakePool = await getStakePoolAccount(CONNECTION, stakePoolAddress);
-        const poolAmount = solToLamports(solAmount);
+        const lamportsToWithdraw = solToLamports(solAmount);
+        const userSolBalance = await CONNECTION.getBalance(userAddress, 'confirmed');
+        const transactionFee = solToLamports(TRANSACTION_FEE);
+        const rentExemptionFee = solToLamports(RENT_EXEMPTION_FEE);
+        if (userSolBalance < transactionFee + rentExemptionFee) {
+            throw Error("You don't have enough SOL to complete this transaction");
+        }
         // dao part
         const daoStateDtoInfo = await PublicKey.findProgramAddress([Buffer.from(this.config.seedPrefixDaoState), stakePoolAddress.toBuffer(), StakePoolProgram.programId.toBuffer()], StakePoolProgram.programId);
         const daoStateDtoPubkey = daoStateDtoInfo[0];
@@ -185,7 +194,7 @@ export class ESol {
         const stakeReceiverAccountBalance = await CONNECTION.getMinimumBalanceForRentExemption(StakeProgram.space);
         const rateOfExchange = stakePool.account.data.rateOfExchange;
         const rate = rateOfExchange ? rateOfExchange.numerator.toNumber() / rateOfExchange.denominator.toNumber() : 1;
-        const solToWithdraw = poolAmount * rate;
+        const solToWithdraw = lamportsToWithdraw * rate;
         if ((reserveStake === null || reserveStake === void 0 ? void 0 : reserveStake.lamports) || (reserveStake === null || reserveStake === void 0 ? void 0 : reserveStake.lamports) === 0) {
             const availableAmount = (reserveStake === null || reserveStake === void 0 ? void 0 : reserveStake.lamports) - stakeReceiverAccountBalance;
             if (availableAmount < solToWithdraw) {
@@ -199,8 +208,8 @@ export class ESol {
             throw new Error('Invalid token account');
         }
         // Check withdrawFrom balance
-        if (tokenAccount.amount.toNumber() < poolAmount) {
-            throw new Error(`Not enough token balance to withdraw ${lamportsToSol(poolAmount)} pool tokens.
+        if (tokenAccount.amount.toNumber() < lamportsToWithdraw) {
+            throw new Error(`Not enough token balance to withdraw ${lamportsToSol(lamportsToWithdraw)} pool tokens.
           Maximum withdraw amount is ${lamportsToSol(tokenAccount.amount.toNumber())} pool tokens.`);
         }
         // Construct transaction to withdraw from withdrawAccounts account list
@@ -253,7 +262,7 @@ export class ESol {
                 communityTokenStakingRewardsCounterDTO: communityStakingRewardsCounterPubkey,
             }));
         }
-        instructions.push(Token.createApproveInstruction(TOKEN_PROGRAM_ID, poolTokenAccount, userTransferAuthority.publicKey, tokenOwner, [], poolAmount));
+        instructions.push(Token.createApproveInstruction(TOKEN_PROGRAM_ID, poolTokenAccount, userTransferAuthority.publicKey, tokenOwner, [], lamportsToWithdraw));
         const poolWithdrawAuthority = await findWithdrawAuthorityProgramAddress(StakePoolProgram.programId, stakePoolAddress);
         if (solWithdrawAuthority) {
             const expectedSolWithdrawAuthority = stakePool.account.data.solWithdrawAuthority;
@@ -278,7 +287,7 @@ export class ESol {
             managerFeeAccount: stakePool.account.data.managerFeeAccount,
             poolMint: stakePool.account.data.poolMint,
             lamportsTo: solReceiver,
-            poolTokens: poolAmount,
+            poolTokens: lamportsToWithdraw,
         });
         instructions.push(withdrawTransaction);
         const transaction = new Transaction();
@@ -293,7 +302,13 @@ export class ESol {
         const CONNECTION = this.config.connection;
         const stakePoolAddress = this.config.eSOLStakePoolAddress;
         const stakePool = await getStakePoolAccount(CONNECTION, stakePoolAddress);
-        const poolAmount = solToLamports(solAmount);
+        const lamportsToWithdraw = solToLamports(solAmount);
+        const userSolBalance = await CONNECTION.getBalance(userAddress, 'confirmed');
+        const transactionFee = solToLamports(TRANSACTION_FEE);
+        const rentExemptionFee = solToLamports(RENT_EXEMPTION_FEE);
+        if (userSolBalance < transactionFee + rentExemptionFee) {
+            throw Error("You don't have enough SOL to complete this transaction");
+        }
         // dao part
         const daoStateDtoInfo = await PublicKey.findProgramAddress([Buffer.from(this.config.seedPrefixDaoState), stakePoolAddress.toBuffer(), StakePoolProgram.programId.toBuffer()], StakePoolProgram.programId);
         const daoStateDtoPubkey = daoStateDtoInfo[0];
@@ -314,8 +329,8 @@ export class ESol {
             throw new Error('Invalid token account');
         }
         // Check withdrawFrom balance
-        if (tokenAccount.amount.toNumber() < poolAmount) {
-            throw new Error(`Not enough token balance to withdraw ${lamportsToSol(poolAmount)} pool tokens.
+        if (tokenAccount.amount.toNumber() < lamportsToWithdraw) {
+            throw new Error(`Not enough token balance to withdraw ${lamportsToSol(lamportsToWithdraw)} pool tokens.
         Maximum withdraw amount is ${lamportsToSol(tokenAccount.amount.toNumber())} pool tokens.`);
         }
         const withdrawAuthority = await findWithdrawAuthorityProgramAddress(StakePoolProgram.programId, stakePoolAddress);
@@ -371,13 +386,13 @@ export class ESol {
                 communityTokenStakingRewardsCounterDTO: communityStakingRewardsCounterPubkey,
             }));
         }
-        instructions.push(Token.createApproveInstruction(TOKEN_PROGRAM_ID, poolTokenAccount, userTransferAuthority.publicKey, userAddress, [], poolAmount));
-        const withdrawAccount = await prepareWithdrawAccounts(CONNECTION, stakePool.account.data, stakePoolAddress, poolAmount);
+        instructions.push(Token.createApproveInstruction(TOKEN_PROGRAM_ID, poolTokenAccount, userTransferAuthority.publicKey, userAddress, [], lamportsToWithdraw));
+        const withdrawAccount = await prepareWithdrawAccounts(CONNECTION, stakePool.account.data, stakePoolAddress, lamportsToWithdraw);
         if (!withdrawAccount) {
             throw Error(`Not available at the moment. Please try again later. Sorry for the inconvenience.`);
         }
         const availableSol = lamportsToSol(withdrawAccount.poolAmount);
-        if (withdrawAccount.poolAmount < poolAmount) {
+        if (withdrawAccount.poolAmount < lamportsToWithdraw) {
             throw Error(`Currently, you can undelegate only ${availableSol} SOL within one transaction due to delayed unstake limitations. Please unstake the desired amount in few transactions. Note that you will be able to track your unstaked SOL in the “Wallet” tab as a summary of transactions!.`);
         }
         const solWithdrawAmount = Math.ceil(calcLamportsWithdrawAmount(stakePool.account.data, withdrawAccount.poolAmount));
