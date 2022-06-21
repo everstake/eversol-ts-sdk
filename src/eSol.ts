@@ -44,6 +44,12 @@ export class ESol {
     daoCommunityTokenReceiverAccount?: PublicKey,
     referrerTokenAccount?: PublicKey,
   ): Promise<Transaction> {
+    if (userAddress.toString() === referrerAccount.toString()) {
+      throw new Error(
+        `Referrer address can't be the same as user address`,
+      );
+    }
+
     const CONNECTION = this.config.connection;
 
     const userSolBalance = await CONNECTION.getBalance(userAddress, 'confirmed');
