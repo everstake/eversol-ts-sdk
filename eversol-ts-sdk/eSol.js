@@ -11,6 +11,9 @@ export class ESol {
         this.config = new ESolConfig(clusterType);
     }
     async depositSolTransaction(userAddress, lamports, referrerAccount, poolTokenReceiverAccount, daoCommunityTokenReceiverAccount, referrerTokenAccount) {
+        if (userAddress.toString() === referrerAccount.toString()) {
+            throw new Error(`Referrer address can't be the same as user address`);
+        }
         const CONNECTION = this.config.connection;
         const userSolBalance = await CONNECTION.getBalance(userAddress, 'confirmed');
         const transactionFee = solToLamports(TRANSACTION_FEE);
