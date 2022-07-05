@@ -36,6 +36,10 @@ export class ESol {
     this.config = new ESolConfig(clusterType);
   }
 
+  add(a: number, b: number) {
+    return a + b;
+  }
+
   async depositSolTransaction(
     userAddress: PublicKey,
     lamports: number,
