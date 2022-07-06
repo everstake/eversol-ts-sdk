@@ -26,7 +26,7 @@ import {
   REFERRER_LIST_LAYOUT,
   ReferrerInfo,
 } from './service/layouts';
-import { TRANSACTION_FEE ,RENT_EXEMPTION_FEE } from './service/constants';
+import { TRANSACTION_FEE, RENT_EXEMPTION_FEE } from './service/constants';
 import { ASSOCIATED_TOKEN_PROGRAM_ID, Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 
 export class ESol {
@@ -45,9 +45,11 @@ export class ESol {
     referrerTokenAccount?: PublicKey,
   ): Promise<Transaction> {
     if (userAddress.toString() === referrerAccount.toString()) {
-      throw new Error(
-        `Referrer address can't be the same as user address`,
-      );
+      throw new Error(`Referrer address can't be the same as user address`);
+    }
+
+    if (lamports === 0) {
+      throw new Error(`You can't deposit 0 SOL`);
     }
 
     const CONNECTION = this.config.connection;

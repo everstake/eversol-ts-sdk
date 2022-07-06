@@ -13,10 +13,11 @@ export const USER_SDK = Keypair.fromSecretKey(
     148, 19, 8, 138, 103, 51, 209, 48, 91, 162, 191, 168,
   ]),
 );
+export const REFERRING_ACCOUNTS_LIST = ['Dy4HN6gtzZBEpNYZvRZvsKRn9KSDdyYWu2LgqUr24Fjm'];
 export const PROVIDER = new Provider(CONNECTION, new Wallet(USER_SDK), { commitment: 'confirmed' });
 export const TESTING_LAMPORTS_AMOUNT = solToLamports(2);
 
-export const sendLamportsToTestingWallet = async (account: PublicKey, minimumLamportsBalance: number) => {
+export const sendLamportsToTestingWallet = async (account: PublicKey) => {
   let userBalance = await CONNECTION.getBalance(account, 'confirmed');
 
   while (lamportsToSol(userBalance) < 1.9) {
