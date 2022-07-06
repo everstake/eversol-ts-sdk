@@ -10,9 +10,6 @@ export class ESol {
     constructor(clusterType = 'testnet') {
         this.config = new ESolConfig(clusterType);
     }
-    add(a, b) {
-        return a + b;
-    }
     async depositSolTransaction(userAddress, lamports, referrerAccount, poolTokenReceiverAccount, daoCommunityTokenReceiverAccount, referrerTokenAccount) {
         if (userAddress.toString() === referrerAccount.toString()) {
             throw new Error(`Referrer address can't be the same as user address`);

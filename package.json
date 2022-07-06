@@ -48,5 +48,8 @@
   },
   "files": [
     "eversol-ts-sdk/**/*"
-  ]
+  ],
+  "dependencies": {
+    "@project-serum/anchor": "^0.18.2"
+  }
 }

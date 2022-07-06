@@ -1,6 +1,6 @@
 import { PublicKey, Connection, clusterApiUrl, Keypair, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { solToLamports, lamportsToSol } from '../src/utils';
-import BN from 'bn.js';
+import { Provider, Wallet } from '@project-serum/anchor';
 
 export const NETWORK_TYPE = 'testnet'; // you can change it for 'mainnet-beta'
 const API_ENDPOINT = clusterApiUrl(NETWORK_TYPE);
@@ -13,17 +13,15 @@ export const USER_SDK = Keypair.fromSecretKey(
     148, 19, 8, 138, 103, 51, 209, 48, 91, 162, 191, 168,
   ]),
 );
-
+export const PROVIDER = new Provider(CONNECTION, new Wallet(USER_SDK), { commitment: 'confirmed' });
 export const TESTING_LAMPORTS_AMOUNT = solToLamports(2);
 
 export const sendLamportsToTestingWallet = async (account: PublicKey, minimumLamportsBalance: number) => {
-  let userBalance = await CONNECTION.getBalance(account, 'finalized');
-  console.log(lamportsToSol(userBalance), "lamportsToSol(userBalance)")
+  let userBalance = await CONNECTION.getBalance(account, 'confirmed');
 
   while (lamportsToSol(userBalance) < 1.9) {
     const signature = await CONNECTION.requestAirdrop(account, LAMPORTS_PER_SOL);
     await CONNECTION.confirmTransaction(signature, 'finalized');
     userBalance = await CONNECTION.getBalance(account, 'finalized');
   }
-  console.log('Airdrop:', lamportsToSol(new BN(userBalance)), 'SOL', 'to', account.toString());
 };
