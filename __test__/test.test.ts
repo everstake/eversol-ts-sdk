@@ -1,22 +1,49 @@
-import { Keypair } from '@solana/web3.js';
+import { PublicKey } from '@solana/web3.js';
+import { sendAndConfirmRawTransaction } from '@solana/web3.js';
 
 import { ESol } from '../src/eSol';
-import { TESTING_LAMPORTS_AMOUNT, sendLamportsToTestingWallet, CONNECTION } from './test-environments';
+import { lamportsToSol, solToLamports } from '../src/utils';
+import { TESTING_LAMPORTS_AMOUNT, sendLamportsToTestingWallet, CONNECTION, USER_SDK } from './test-environments';
 
-const everSol = new ESol();
+const testingNetwork = 'testnet';
+const everSol = new ESol(testingNetwork);
+const user = USER_SDK;
 
 describe('ESol testing SDK', () => {
   beforeAll(async () => {
-    const SDK_USER = Keypair.generate();
-    const userSolBalance1 = await CONNECTION.getBalance(SDK_USER.publicKey, 'confirmed');
-    console.log(userSolBalance1, 'userSolBalance1');
-    
-    await sendLamportsToTestingWallet(SDK_USER.publicKey, TESTING_LAMPORTS_AMOUNT);
-    const userSolBalance2 = await CONNECTION.getBalance(SDK_USER.publicKey, 'confirmed');
-    console.log(userSolBalance2, 'userSolBalance2');
+    await sendLamportsToTestingWallet(user.publicKey, TESTING_LAMPORTS_AMOUNT);
   });
 
-  it('should return 5 for add(2,3)', () => {
-    expect(everSol.add(2, 3)).toBe(5);
+  describe('Delegate SOL', () => {
+    it('check esol balance', async () => {
+      console.log("start deposit")
+      const referrerAccount = new PublicKey('Dy4HN6gtzZBEpNYZvRZvsKRn9KSDdyYWu2LgqUr24Fjm');
+      const depositAmount = solToLamports(0.5)
+
+      try {
+        const depositTransaction = await everSol.depositSolTransaction(user.publicKey, depositAmount, referrerAccount);
+        const rawTransaction = depositTransaction.serialize();
+        const transactionHash = await sendAndConfirmRawTransaction(CONNECTION, rawTransaction);
+        console.log(transactionHash, "transactionHash")
+        console.log('Deposit tx:', transactionHash, depositTransaction.instructions.length);
+        const transInfo = await CONNECTION.getTransaction(transactionHash, { commitment: 'finalized' });
+        const solBalance: any = transInfo?.meta?.postBalances[0];
+
+        const newSolBalance = lamportsToSol(solBalance);
+        const newESolInfo = transInfo?.meta?.postTokenBalances?.find(
+          (account: any) => account.owner === user.publicKey.toString(),
+        );
+        const esolInfo = {
+          balance: newESolInfo?.uiTokenAmount.uiAmount,
+          chainId: 102,
+          name: 'eSol token',
+          symbol: 'eSol',
+        };
+        console.log('newSolBalance', newSolBalance);
+        console.log('esolInfo', esolInfo);
+      } catch (err) {
+        console.log(err);
+      }
+    });
   });
 });

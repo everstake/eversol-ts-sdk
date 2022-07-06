@@ -36,10 +36,6 @@ export class ESol {
     this.config = new ESolConfig(clusterType);
   }
 
-  add(a: number, b: number) {
-    return a + b;
-  }
-
   async depositSolTransaction(
     userAddress: PublicKey,
     lamports: number,
@@ -56,7 +52,7 @@ export class ESol {
 
     const CONNECTION = this.config.connection;
 
-    const userSolBalance = await CONNECTION.getBalance(userAddress, 'confirmed');
+    const userSolBalance = await CONNECTION.getBalance(userAddress, 'finalized');
     const transactionFee = solToLamports(TRANSACTION_FEE);
     const lamportsWithFee = lamports + transactionFee;
 
