@@ -286,7 +286,7 @@ export class ESol {
     return transaction;
   }
 
-  async unDelegateSolTransaction(userAddress: PublicKey, solAmount: number, solWithdrawAuthority?: PublicKey) {
+  async unDelegateSolTransaction(userAddress: PublicKey, eSolAmount: number, solWithdrawAuthority?: PublicKey) {
     const CONNECTION = this.config.connection;
     const tokenOwner = userAddress;
     const solReceiver = userAddress;
@@ -294,7 +294,7 @@ export class ESol {
     const stakePoolAddress = this.config.eSOLStakePoolAddress;
     const stakePool = await getStakePoolAccount(CONNECTION, stakePoolAddress);
 
-    const lamportsToWithdraw = solToLamports(solAmount);
+    const lamportsToWithdraw = solToLamports(eSolAmount);
 
     const userSolBalance = await CONNECTION.getBalance(userAddress, 'confirmed');
     const transactionFee = solToLamports(TRANSACTION_FEE);
@@ -332,7 +332,6 @@ export class ESol {
 
     if (reserveStake?.lamports || reserveStake?.lamports === 0) {
       const availableAmount = reserveStake?.lamports - stakeReceiverAccountBalance;
-
       if (availableAmount < solToWithdraw) {
         const availableTokenAmount = +availableAmount / +rate;
         throw new Error(
@@ -499,7 +498,7 @@ export class ESol {
 
   async withdrawSolTransaction(
     userAddress: PublicKey,
-    solAmount: number,
+    eSolAmount: number,
     stakeReceiver?: PublicKey,
     poolTokenAccount?: PublicKey,
   ) {
@@ -507,7 +506,7 @@ export class ESol {
     const stakePoolAddress = this.config.eSOLStakePoolAddress;
     const stakePool = await getStakePoolAccount(CONNECTION, stakePoolAddress);
 
-    const lamportsToWithdraw = solToLamports(solAmount);
+    const lamportsToWithdraw = solToLamports(eSolAmount);
 
     const userSolBalance = await CONNECTION.getBalance(userAddress, 'confirmed');
     const transactionFee = solToLamports(TRANSACTION_FEE);

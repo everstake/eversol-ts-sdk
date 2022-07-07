@@ -1,10 +1,15 @@
 import { PublicKey, Connection, clusterApiUrl, Keypair, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { solToLamports, lamportsToSol } from '../src/utils';
 import { Provider, Wallet } from '@project-serum/anchor';
+import { ASSOCIATED_TOKEN_PROGRAM_ID, Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { getTokenAccount, StakePoolAccount } from '../src/service/service';
 
 export const NETWORK_TYPE = 'testnet'; // you can change it for 'mainnet-beta'
 const API_ENDPOINT = clusterApiUrl(NETWORK_TYPE);
+export const testingNetwork = 'testnet';
+
 export const CONNECTION = new Connection(API_ENDPOINT);
+export const TESTNET_STAKEPOOL_ACCOUNT = 'w55eR1rNUjD1hLxvxsVtBDm98iPdSWTbLmTh8B1WA4k';
 
 export const USER_SDK = Keypair.fromSecretKey(
   new Uint8Array([
@@ -13,6 +18,7 @@ export const USER_SDK = Keypair.fromSecretKey(
     148, 19, 8, 138, 103, 51, 209, 48, 91, 162, 191, 168,
   ]),
 );
+export const referrerAccount = new PublicKey('Dy4HN6gtzZBEpNYZvRZvsKRn9KSDdyYWu2LgqUr24Fjm');
 export const REFERRING_ACCOUNTS_LIST = ['Dy4HN6gtzZBEpNYZvRZvsKRn9KSDdyYWu2LgqUr24Fjm'];
 export const PROVIDER = new Provider(CONNECTION, new Wallet(USER_SDK), { commitment: 'confirmed' });
 export const TESTING_LAMPORTS_AMOUNT = solToLamports(2);
@@ -26,3 +32,15 @@ export const sendLamportsToTestingWallet = async (account: PublicKey) => {
     userBalance = await CONNECTION.getBalance(account, 'finalized');
   }
 };
+
+export const getESolBalance = async (stakePool: StakePoolAccount, userPubkey: PublicKey) => {
+  const poolTokenAccount = await Token.getAssociatedTokenAddress(
+    ASSOCIATED_TOKEN_PROGRAM_ID,
+    TOKEN_PROGRAM_ID,
+    stakePool.account.data.poolMint,
+    userPubkey,
+  );
+
+  const tokenAccount = await getTokenAccount(CONNECTION, poolTokenAccount, stakePool.account.data.poolMint);
+  return tokenAccount.amount.toNumber();
+}
