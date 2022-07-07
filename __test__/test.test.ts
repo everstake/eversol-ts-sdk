@@ -18,7 +18,7 @@ import {
 // settings
 const everSol = new ESol(testingNetwork);
 const depositAmount = solToLamports(1);
-const undelegateAmount = 0.01;
+const undelegateAmount = 0.1;
 
 // initial state
 const user = USER_SDK;
@@ -35,7 +35,7 @@ describe('ESol testing SDK', () => {
     stakePool = await getStakePoolAccount(CONNECTION, new PublicKey(TESTNET_STAKEPOOL_ACCOUNT));
 
     // get eSol balance
-    userESoLamportsBalance = getESolBalance(stakePool, user.publicKey);
+    userESoLamportsBalance = await getESolBalance(stakePool, user.publicKey);
   });
 
   describe('Delegate SOL', () => {
@@ -59,7 +59,7 @@ describe('ESol testing SDK', () => {
       try {
         const depositTransaction = await everSol.depositSolTransaction(user.publicKey, depositAmount, referrerAccount);
         const transactionHash = await PROVIDER.send(depositTransaction);
-        console.log('transaction hash:', transactionHash, depositTransaction.instructions.length);
+        console.log('deposit transaction hash:', transactionHash);
         const transInfo = await CONNECTION.getTransaction(transactionHash, { commitment: 'confirmed' });
 
         const solBalance: any = transInfo?.meta?.postBalances[0];
@@ -97,13 +97,43 @@ describe('ESol testing SDK', () => {
       try {
         const unDelegateTransaction = await everSol.unDelegateSolTransaction(user.publicKey, undelegateAmount);
         const transactionHash = await PROVIDER.send(unDelegateTransaction);
-        console.log('transaction hash:', transactionHash, unDelegateTransaction.instructions.length);
+        console.log('unDelegate transaction hash:', transactionHash);
         const transInfo = await CONNECTION.getTransaction(transactionHash, { commitment: 'confirmed' });
 
         const solBalance: any = transInfo?.meta?.postBalances[0];
         const newSolBalance = lamportsToSol(solBalance);
 
         expect(solBalance).toBeGreaterThan(lamportsToSol(newSolBalance));
+      } catch (err) {
+        console.log(err);
+      }
+    });
+  });
+
+  describe('Withdraw SOL', () => {
+    it('is enough eSOL in user wallet', async () => {
+      const lamportsToWithdraw = solToLamports(undelegateAmount);
+
+      if (userESoLamportsBalance < lamportsToWithdraw) {
+        expect(lamportsToSol(userESoLamportsBalance)).toBeGreaterThan(lamportsToWithdraw);
+      }
+    });
+
+    it('check transaction result', async () => {
+      try {
+        const withdrawSolTransaction = await everSol.withdrawSolTransaction(user.publicKey, undelegateAmount);
+        const transactionHash = await PROVIDER.send(withdrawSolTransaction);
+        console.log('delayed uStake transaction hash:', transactionHash);
+
+        const transInfo = await CONNECTION.getTransaction(transactionHash, { commitment: 'confirmed' });
+        const newESolBalance = transInfo?.meta?.postTokenBalances?.find(
+          (account: any) => account.owner === user.publicKey.toString(),
+        )?.uiTokenAmount.uiAmount;
+
+
+        if (newESolBalance) {
+          expect(lamportsToSol(userESoLamportsBalance)).toBeGreaterThan(lamportsToSol(newESolBalance));
+        }
       } catch (err) {
         console.log(err);
       }

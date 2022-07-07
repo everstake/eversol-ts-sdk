@@ -43,4 +43,4 @@ export const getESolBalance = async (stakePool: StakePoolAccount, userPubkey: Pu
 
   const tokenAccount = await getTokenAccount(CONNECTION, poolTokenAccount, stakePool.account.data.poolMint);
   return tokenAccount.amount.toNumber();
-}
+};
