@@ -47,7 +47,7 @@ Skip the basic Solana cool-down period and undelegate stake instantly. If the fe
 
 ```ts
 ...
-const instantUnstakeTransaction = await eSol.unDelegateSolTransaction(userAddress, amountLamports)
+const instantUnstakeTransaction = await eSol.unDelegateSolTransaction(userAddress, eSolAmount)
 // than sign and send the `transaction`
 ```
 
@@ -57,7 +57,7 @@ Your stake will be deactivated with the beginning of a new epoch. Once the stake
 
 ```ts
 ...
-const delayedUnstakeTransaction = await eSol.withdrawSolTransaction(userAddress, amountLamports)
+const delayedUnstakeTransaction = await eSol.withdrawSolTransaction(userAddress, eSolAmount)
 // than sign and send the `transaction`
 ```
 

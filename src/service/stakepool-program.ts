@@ -20,7 +20,7 @@ export type InstructionType = {
   /** The Instruction index (from solana upstream program) */
   index: number;
   /** The BufferLayout to use to build data */
-  layout: BufferLayout.Layout;
+  layout: BufferLayout.Layout<any>;
 };
 
 type WithdrawStakeParams = {
@@ -122,7 +122,7 @@ export const STAKE_POOL_INSTRUCTION_LAYOUTS: {
 } = Object.freeze({
   Initialize: {
     index: 0,
-    layout: BufferLayout.struct([
+    layout: BufferLayout.struct<any>([
       BufferLayout.u8('instruction'),
       BufferLayout.ns64('fee_denominator'),
       BufferLayout.ns64('fee_numerator'),
@@ -133,7 +133,7 @@ export const STAKE_POOL_INSTRUCTION_LAYOUTS: {
   },
   Deposit: {
     index: 9,
-    layout: BufferLayout.struct([BufferLayout.u8('instruction')]),
+    layout: BufferLayout.struct<any>([BufferLayout.u8('instruction')]),
   },
   ///   Withdraw the token from the pool at the current ratio.
   ///
@@ -169,7 +169,7 @@ export const STAKE_POOL_INSTRUCTION_LAYOUTS: {
   ///  userdata: amount of pool tokens to withdraw
   WithdrawStake: {
     index: 10,
-    layout: BufferLayout.struct([BufferLayout.u8('instruction'), BufferLayout.ns64('poolTokens')]),
+    layout: BufferLayout.struct<any>([BufferLayout.u8('instruction'), BufferLayout.ns64('poolTokens')]),
   },
   ///   Withdraw the token from the pool at the current ratio.
   ///
@@ -208,12 +208,12 @@ export const STAKE_POOL_INSTRUCTION_LAYOUTS: {
   ///  userdata: amount of pool tokens to withdraw
   WithdrawStakeWithDao: {
     index: 24,
-    layout: BufferLayout.struct([BufferLayout.u8('instruction'), BufferLayout.ns64('poolTokens')]),
+    layout: BufferLayout.struct<any>([BufferLayout.u8('instruction'), BufferLayout.ns64('poolTokens')]),
   },
 
   DepositSol: {
     index: 14,
-    layout: BufferLayout.struct([BufferLayout.u8('instruction'), BufferLayout.ns64('lamports')]),
+    layout: BufferLayout.struct<any>([BufferLayout.u8('instruction'), BufferLayout.ns64('lamports')]),
   },
   ///   Deposit SOL directly into the pool's reserve account. The output is a "pool" token
   ///   representing ownership into the pool. Inputs are converted to the current ratio.
@@ -232,7 +232,7 @@ export const STAKE_POOL_INSTRUCTION_LAYOUTS: {
 
   DepositSolDao: {
     index: 22,
-    layout: BufferLayout.struct([BufferLayout.u8('instruction'), BufferLayout.ns64('lamports')]),
+    layout: BufferLayout.struct<any>([BufferLayout.u8('instruction'), BufferLayout.ns64('lamports')]),
   },
   /// DepositSolDao
   ///   0. [w] Stake pool
@@ -252,7 +252,7 @@ export const STAKE_POOL_INSTRUCTION_LAYOUTS: {
   ///  14. [s] (Optional) Stake pool sol deposit authority.
   DepositSolDaoWithReferrer: {
     index: 33,
-    layout: BufferLayout.struct([BufferLayout.u8('instruction'), BufferLayout.ns64('lamports')]),
+    layout: BufferLayout.struct<any>([BufferLayout.u8('instruction'), BufferLayout.ns64('lamports')]),
   },
   ///   Deposit SOL directly into the pool's reserve account with existing DAO`s community tokens strategy. The output is a "pool" token
   ///   representing ownership into the pool. Inputs are converted to the current ratio.
@@ -286,7 +286,7 @@ export const STAKE_POOL_INSTRUCTION_LAYOUTS: {
   ///  2. '[]` New authority pubkey or none
   SetFundingAuthority: {
     index: 15,
-    layout: BufferLayout.struct([BufferLayout.u8('instruction'), BufferLayout.u32('fundingType')]),
+    layout: BufferLayout.struct<any>([BufferLayout.u8('instruction'), BufferLayout.u32('fundingType')]),
   },
   ///   Withdraw SOL directly from the pool's reserve account. Fails if the
   ///   reserve does not have enough SOL.
@@ -306,7 +306,7 @@ export const STAKE_POOL_INSTRUCTION_LAYOUTS: {
   ///  12. `[s]` (Optional) Stake pool sol withdraw authority
   WithdrawSol: {
     index: 16,
-    layout: BufferLayout.struct([BufferLayout.u8('instruction'), BufferLayout.ns64('poolTokens')]),
+    layout: BufferLayout.struct<any>([BufferLayout.u8('instruction'), BufferLayout.ns64('poolTokens')]),
   },
   ///   Withdraw SOL directly from the pool's reserve account with existing DAO`s community tokens strategy. Fails if the
   ///   reserve does not have enough SOL.
@@ -330,7 +330,7 @@ export const STAKE_POOL_INSTRUCTION_LAYOUTS: {
   ///  16. [s] (Optional) Stake pool sol withdraw authority
   WithdrawSolWithDao: {
     index: 23,
-    layout: BufferLayout.struct([BufferLayout.u8('instruction'), BufferLayout.ns64('poolTokens')]),
+    layout: BufferLayout.struct<any>([BufferLayout.u8('instruction'), BufferLayout.ns64('poolTokens')]),
   },
   ///   Create account for storing information for DAO`s community tokens destribution strategy
   ///   0. [] Stake pool
@@ -341,7 +341,7 @@ export const STAKE_POOL_INSTRUCTION_LAYOUTS: {
   ///   5  [] System program account
   CreateCommunityTokenStakingRewards: {
     index: 21,
-    layout: BufferLayout.struct([BufferLayout.u8('instruction')]),
+    layout: BufferLayout.struct<any>([BufferLayout.u8('instruction')]),
   },
 });
 
