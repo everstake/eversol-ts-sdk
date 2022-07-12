@@ -14,8 +14,11 @@ export class ESol {
         if (userAddress.toString() === referrerAccount.toString()) {
             throw new Error(`Referrer address can't be the same as user address`);
         }
+        if (lamports === 0) {
+            throw new Error(`You can't deposit 0 SOL`);
+        }
         const CONNECTION = this.config.connection;
-        const userSolBalance = await CONNECTION.getBalance(userAddress, 'confirmed');
+        const userSolBalance = await CONNECTION.getBalance(userAddress, 'finalized');
         const transactionFee = solToLamports(TRANSACTION_FEE);
         const lamportsWithFee = lamports + transactionFee;
         if (userSolBalance < lamportsWithFee) {
@@ -168,13 +171,13 @@ export class ESol {
         transaction.sign(...signers);
         return transaction;
     }
-    async unDelegateSolTransaction(userAddress, solAmount, solWithdrawAuthority) {
+    async unDelegateSolTransaction(userAddress, eSolAmount, solWithdrawAuthority) {
         const CONNECTION = this.config.connection;
         const tokenOwner = userAddress;
         const solReceiver = userAddress;
         const stakePoolAddress = this.config.eSOLStakePoolAddress;
         const stakePool = await getStakePoolAccount(CONNECTION, stakePoolAddress);
-        const lamportsToWithdraw = solToLamports(solAmount);
+        const lamportsToWithdraw = solToLamports(eSolAmount);
         const userSolBalance = await CONNECTION.getBalance(userAddress, 'confirmed');
         const transactionFee = solToLamports(TRANSACTION_FEE);
         const rentExemptionFee = solToLamports(RENT_EXEMPTION_FEE);
@@ -300,12 +303,12 @@ export class ESol {
         transaction.sign(...signers);
         return transaction;
     }
-    async withdrawSolTransaction(userAddress, solAmount, stakeReceiver, poolTokenAccount) {
+    async withdrawSolTransaction(userAddress, eSolAmount, stakeReceiver, poolTokenAccount) {
         var _a, _b;
         const CONNECTION = this.config.connection;
         const stakePoolAddress = this.config.eSOLStakePoolAddress;
         const stakePool = await getStakePoolAccount(CONNECTION, stakePoolAddress);
-        const lamportsToWithdraw = solToLamports(solAmount);
+        const lamportsToWithdraw = solToLamports(eSolAmount);
         const userSolBalance = await CONNECTION.getBalance(userAddress, 'confirmed');
         const transactionFee = solToLamports(TRANSACTION_FEE);
         const rentExemptionFee = solToLamports(RENT_EXEMPTION_FEE);

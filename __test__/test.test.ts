@@ -73,7 +73,7 @@ describe('ESol testing SDK', () => {
     });
   });
 
-  describe('Undelegate SOL', () => {
+  describe('Undelegate SOL (Instant unstake)', () => {
     it('is enough SOL in reserve account', async () => {
       const reserveStake = await CONNECTION.getAccountInfo(stakePool.account.data.reserveStake);
       const rateOfExchange = stakePool.account.data.rateOfExchange;
@@ -110,7 +110,7 @@ describe('ESol testing SDK', () => {
     });
   });
 
-  describe('Withdraw SOL', () => {
+  describe('Withdraw SOL (Delayed unstake)', () => {
     it('is enough eSOL in user wallet', async () => {
       const lamportsToWithdraw = solToLamports(undelegateAmount);
 
