@@ -1,97 +1,67 @@
-import { ESolConfig } from './config';
 import { PublicKey, Transaction, Keypair, SystemProgram, StakeProgram, } from '@solana/web3.js';
+import { ESolConfig } from './config';
+import { StakePoolProgram } from './service/stakepool-program';
 import { lamportsToSol, solToLamports } from './utils';
 import { getStakePoolAccount, addAssociatedTokenAccount, findWithdrawAuthorityProgramAddress, getTokenAccount, prepareWithdrawAccounts, calcLamportsWithdrawAmount, newStakeAccount, } from './service/service';
-import { StakePoolProgram } from './service/stakepool-program';
-import { DAO_STATE_LAYOUT, COMMUNITY_TOKEN_LAYOUT, METRICS_DEPOSIT_REFERRER_LAYOUT, REFERRER_LIST_LAYOUT, } from './service/layouts';
+import checkDaoStakingAccounts from './service/checkDaoStakingAccounts';
+import checkCommunityTokenStakingAccount from './service/checkCommunityTokenStakingAccount';
+import { DAO_STATE_LAYOUT, COMMUNITY_TOKEN_LAYOUT, REFERRER_LIST_LAYOUT } from './service/layouts';
 import { TRANSACTION_FEE, RENT_EXEMPTION_FEE } from './service/constants';
 import { ASSOCIATED_TOKEN_PROGRAM_ID, Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 export class ESol {
     constructor(clusterType = 'testnet') {
         this.config = new ESolConfig(clusterType);
     }
-    async depositSolTransaction(userAddress, lamports, referrerAccount, poolTokenReceiverAccount, daoCommunityTokenReceiverAccount, referrerTokenAccount) {
-        if (userAddress.toString() === referrerAccount.toString()) {
-            throw new Error(`Referrer address can't be the same as user address`);
-        }
-        if (lamports === 0) {
-            throw new Error(`You can't deposit 0 SOL`);
-        }
-        const CONNECTION = this.config.connection;
-        const userSolBalance = await CONNECTION.getBalance(userAddress, 'finalized');
+    async createDepositSolTransactionWithReferrer(walletAddress, lamports, referrerAccount, poolTokenReceiverAccount, daoCommunityTokenReceiverAccount) {
+        const { connection, seedPrefixDaoState, seedPrefixCommunityToken, seedPrefixCommunityTokenStakingRewards, seedPrefixCommunityTokenStakingRewardsCounter, } = this.config;
+        // Check user balance
+        const userSolBalance = await connection.getBalance(walletAddress, 'confirmed');
+        const lamportsToLeftInWallet = 3000000;
+        let needForTransaction = lamportsToLeftInWallet;
         const transactionFee = solToLamports(TRANSACTION_FEE);
         const lamportsWithFee = lamports + transactionFee;
         if (userSolBalance < lamportsWithFee) {
             throw new Error(`Not enough SOL to deposit into pool. Maximum deposit amount is ${lamportsToSol(userSolBalance)} SOL.`);
         }
+        if (walletAddress.toString() === referrerAccount.toString()) {
+            throw new Error(`Referrer address can't be the same as user address`);
+        }
+        if (lamports === 0) {
+            throw new Error(`You can't deposit 0 SOL`);
+        }
         const stakePoolAddress = this.config.eSOLStakePoolAddress;
-        const stakePool = await getStakePoolAccount(CONNECTION, stakePoolAddress);
+        const stakePool = await getStakePoolAccount(connection, stakePoolAddress);
         const userSolTransfer = new Keypair();
         const signers = [userSolTransfer];
         const instructions = [];
-        // Check user balance
-        const lamportsToLeftInWallet = 3000000;
-        let needForTransaction = lamportsToLeftInWallet;
-        const daoCommunityTokenReceiverAccountRentSpace = await CONNECTION.getMinimumBalanceForRentExemption(165);
+        instructions.push(SystemProgram.transfer({
+            fromPubkey: walletAddress,
+            toPubkey: userSolTransfer.publicKey,
+            lamports,
+        }));
+        // Check dao stake accounts
+        const daoCommunityTokenReceiverAccountRentSpace = await connection.getMinimumBalanceForRentExemption(165);
         if (!daoCommunityTokenReceiverAccount) {
             needForTransaction += daoCommunityTokenReceiverAccountRentSpace;
         }
         if (!poolTokenReceiverAccount) {
-            const poolTokenReceiverAccountRentSpace = await CONNECTION.getMinimumBalanceForRentExemption(165);
+            const poolTokenReceiverAccountRentSpace = await connection.getMinimumBalanceForRentExemption(165);
             needForTransaction += poolTokenReceiverAccountRentSpace;
         }
         if (userSolBalance < lamports + needForTransaction) {
             lamports -= needForTransaction;
         }
         // Check dao stake accounts
-        const seedPrefixDaoState = this.config.seedPrefixDaoState;
-        const daoStateDtoInfo = await PublicKey.findProgramAddress([Buffer.from(seedPrefixDaoState), stakePoolAddress.toBuffer(), StakePoolProgram.programId.toBuffer()], StakePoolProgram.programId);
-        const daoStateDtoPubkey = daoStateDtoInfo[0];
-        const daoStateDtoInfoAccount = await CONNECTION.getAccountInfo(daoStateDtoPubkey);
-        if (!daoStateDtoInfoAccount) {
-            throw Error("Didn't find dao state account");
-        }
-        const daoState = DAO_STATE_LAYOUT.decode(daoStateDtoInfoAccount.data);
-        const isDaoEnabled = daoState.isEnabled;
-        if (!isDaoEnabled) {
-            throw Error('Dao is not enable'); // it should never happened!!!
-        }
-        const seedPrefixCommunityToken = this.config.seedPrefixCommunityToken;
-        const communityTokenDtoInfo = await PublicKey.findProgramAddress([Buffer.from(seedPrefixCommunityToken), stakePoolAddress.toBuffer(), StakePoolProgram.programId.toBuffer()], StakePoolProgram.programId);
-        const communityTokenPubkey = communityTokenDtoInfo[0];
-        const communityTokenAccount = await CONNECTION.getAccountInfo(communityTokenPubkey);
-        if (!communityTokenAccount) {
-            throw Error('Community token is not exist'); // if isDaoEnabled -> error should NOT happened
-        }
-        const communityTokenInfo = COMMUNITY_TOKEN_LAYOUT.decode(communityTokenAccount.data);
+        const [communityTokenInfo, communityTokenPubkey] = await checkDaoStakingAccounts(stakePoolAddress, connection, seedPrefixDaoState, seedPrefixCommunityToken);
         // CommunityTokenStakingRewards
         // Account Data length = 105 bytes
-        const seedPrefixCommunityTokenStakingRewards = this.config.seedPrefixCommunityTokenStakingRewards;
-        const communityTokenStakingRewardsInfo = await PublicKey.findProgramAddress([
-            Buffer.from(seedPrefixCommunityTokenStakingRewards),
-            stakePoolAddress.toBuffer(),
-            userAddress.toBuffer(),
-            StakePoolProgram.programId.toBuffer(),
-        ], StakePoolProgram.programId);
-        const communityTokenStakingRewardsPubkey = communityTokenStakingRewardsInfo[0];
-        const communityTokenStakingRewardsAccount = await CONNECTION.getAccountInfo(communityTokenStakingRewardsPubkey);
-        // communityTokenStakingRewardsCounter
-        const seedPrefixCommunityTokenStakingRewardsCounter = this.config.seedPrefixCommunityTokenStakingRewardsCounter;
-        const communityTokenStakingRewardsCounterDtoInfo = await PublicKey.findProgramAddress([
-            Buffer.from(seedPrefixCommunityTokenStakingRewardsCounter),
-            stakePoolAddress.toBuffer(),
-            StakePoolProgram.programId.toBuffer(),
-        ], StakePoolProgram.programId);
-        const communityStakingRewardsCounterPubkey = communityTokenStakingRewardsCounterDtoInfo[0];
-        const communityTokenStakingRewardsCounterAccount = await CONNECTION.getAccountInfo(communityStakingRewardsCounterPubkey);
-        if (!communityTokenStakingRewardsCounterAccount) {
-            throw Error('Community token staking reward counter is not exist'); // if isDaoEnabled -> error should NOT happened
-        }
+        const [communityStakingRewardsCounterPubkey, communityTokenStakingRewardsPubkey] = await checkCommunityTokenStakingAccount(stakePoolAddress, connection, walletAddress, seedPrefixCommunityTokenStakingRewards, seedPrefixCommunityTokenStakingRewardsCounter);
+        const communityTokenStakingRewardsAccount = await connection.getAccountInfo(communityTokenStakingRewardsPubkey);
         if (!communityTokenStakingRewardsAccount) {
             // create CommunityTokenStakingRewards
             instructions.push(StakePoolProgram.createCommunityTokenStakingRewards({
                 stakePoolPubkey: stakePoolAddress,
-                ownerWallet: userAddress,
+                ownerWallet: walletAddress,
                 communityTokenStakingRewardsDTO: communityTokenStakingRewardsPubkey,
                 communityTokenStakingRewardsCounterDTO: communityStakingRewardsCounterPubkey,
             }));
@@ -100,7 +70,7 @@ export class ESol {
         const referrerList = this.config.referrerListPrefix;
         const referrerListDtoInfo = await PublicKey.findProgramAddress([Buffer.from(referrerList), stakePoolAddress.toBuffer(), StakePoolProgram.programId.toBuffer()], StakePoolProgram.programId);
         const referrerListDtoPubkey = referrerListDtoInfo[0];
-        const referrerListDtoAccount = await CONNECTION.getAccountInfo(referrerListDtoPubkey);
+        const referrerListDtoAccount = await connection.getAccountInfo(referrerListDtoPubkey);
         if (!referrerListDtoAccount) {
             throw Error('Referer list account doesn`t exist');
         }
@@ -112,43 +82,20 @@ export class ESol {
         if (!isReferrerAccountInList) {
             throw Error("Public key of referrer account doesn't exist in referrer list");
         }
-        const metricCounter = this.config.metricCounterPrefix;
-        const metricCounterDtoInfo = await PublicKey.findProgramAddress([Buffer.from(metricCounter), stakePoolAddress.toBuffer(), StakePoolProgram.programId.toBuffer()], StakePoolProgram.programId);
-        const metricCounterDtoPubkey = metricCounterDtoInfo[0];
-        const metricCounterDtoAccount = await CONNECTION.getAccountInfo(metricCounterDtoPubkey);
-        if (!metricCounterDtoAccount) {
-            throw Error("Metric counter doesn't exist");
-        }
-        const metricCounterInfo = METRICS_DEPOSIT_REFERRER_LAYOUT.decode(metricCounterDtoAccount.data);
-        const counterId = metricCounterInfo.counterForGroup + (metricCounterInfo.accountGroup - 1) * 100;
-        const counterIdAdapted = counterId.toString();
-        const metric = this.config.metricPrefix;
-        const metricsDepositReferrerDtoAccountAddress = await PublicKey.findProgramAddress([
-            Buffer.from(metric),
-            stakePoolAddress.toBuffer(),
-            Buffer.from(counterIdAdapted),
-            StakePoolProgram.programId.toBuffer(),
-        ], StakePoolProgram.programId);
-        const metricsDepositReferrerDtoAccount = metricsDepositReferrerDtoAccountAddress[0];
-        instructions.push(SystemProgram.transfer({
-            fromPubkey: userAddress,
-            toPubkey: userSolTransfer.publicKey,
-            lamports,
-        }));
         const { poolMint } = stakePool.account.data;
         // check associatedTokenAccount for RENT 165 BYTES FOR RENTs
         if (!poolTokenReceiverAccount) {
-            poolTokenReceiverAccount = await addAssociatedTokenAccount(CONNECTION, userAddress, poolMint, instructions);
+            poolTokenReceiverAccount = await addAssociatedTokenAccount(connection, walletAddress, poolMint, instructions);
         }
         // check associatedTokenAccount for RENT 165 BYTES FOR RENTs
         if (!daoCommunityTokenReceiverAccount) {
-            daoCommunityTokenReceiverAccount = await addAssociatedTokenAccount(CONNECTION, userAddress, communityTokenInfo.tokenMint, instructions);
+            daoCommunityTokenReceiverAccount = await addAssociatedTokenAccount(connection, walletAddress, communityTokenInfo.tokenMint, instructions);
         }
         const withdrawAuthority = await findWithdrawAuthorityProgramAddress(StakePoolProgram.programId, stakePoolAddress);
         instructions.push(StakePoolProgram.depositSolDaoWithReferrerInstruction({
             daoCommunityTokenReceiverAccount,
             communityTokenStakingRewards: communityTokenStakingRewardsPubkey,
-            ownerWallet: userAddress,
+            ownerWallet: walletAddress,
             communityTokenPubkey,
             stakePoolPubkey: stakePoolAddress,
             depositAuthority: undefined,
@@ -161,24 +108,22 @@ export class ESol {
             poolMint,
             lamports,
             referrerList: referrerListDtoPubkey,
-            metricsDepositReferrerDtoAccount,
-            metricsDepositReferrerCounterDtoAccount: metricCounterDtoPubkey,
         }));
         const transaction = new Transaction();
         instructions.forEach((instruction) => transaction.add(instruction));
-        transaction.feePayer = userAddress;
-        transaction.recentBlockhash = (await CONNECTION.getRecentBlockhash()).blockhash;
+        transaction.feePayer = walletAddress;
+        transaction.recentBlockhash = (await connection.getRecentBlockhash()).blockhash;
         transaction.sign(...signers);
         return transaction;
     }
-    async unDelegateSolTransaction(userAddress, eSolAmount, solWithdrawAuthority) {
-        const CONNECTION = this.config.connection;
+    async createUnDelegateSolTransaction(userAddress, eSolAmount, solWithdrawAuthority) {
+        const { connection } = this.config;
         const tokenOwner = userAddress;
         const solReceiver = userAddress;
         const stakePoolAddress = this.config.eSOLStakePoolAddress;
-        const stakePool = await getStakePoolAccount(CONNECTION, stakePoolAddress);
+        const stakePool = await getStakePoolAccount(connection, stakePoolAddress);
         const lamportsToWithdraw = solToLamports(eSolAmount);
-        const userSolBalance = await CONNECTION.getBalance(userAddress, 'confirmed');
+        const userSolBalance = await connection.getBalance(userAddress, 'confirmed');
         const transactionFee = solToLamports(TRANSACTION_FEE);
         const rentExemptionFee = solToLamports(RENT_EXEMPTION_FEE);
         if (userSolBalance < transactionFee + rentExemptionFee) {
@@ -187,7 +132,7 @@ export class ESol {
         // dao part
         const daoStateDtoInfo = await PublicKey.findProgramAddress([Buffer.from(this.config.seedPrefixDaoState), stakePoolAddress.toBuffer(), StakePoolProgram.programId.toBuffer()], StakePoolProgram.programId);
         const daoStateDtoPubkey = daoStateDtoInfo[0];
-        const daoStateDtoInfoAccount = await CONNECTION.getAccountInfo(daoStateDtoPubkey);
+        const daoStateDtoInfoAccount = await connection.getAccountInfo(daoStateDtoPubkey);
         if (!daoStateDtoInfoAccount) {
             throw Error("Didn't find dao state account");
         }
@@ -196,8 +141,8 @@ export class ESol {
         if (!isDaoEnabled) {
             throw Error('Dao is not enable'); // it should never happened!!!
         }
-        const reserveStake = await CONNECTION.getAccountInfo(stakePool.account.data.reserveStake);
-        const stakeReceiverAccountBalance = await CONNECTION.getMinimumBalanceForRentExemption(StakeProgram.space);
+        const reserveStake = await connection.getAccountInfo(stakePool.account.data.reserveStake);
+        const stakeReceiverAccountBalance = await connection.getMinimumBalanceForRentExemption(StakeProgram.space);
         const rateOfExchange = stakePool.account.data.rateOfExchange;
         const rate = rateOfExchange ? rateOfExchange.numerator.toNumber() / rateOfExchange.denominator.toNumber() : 1;
         const solToWithdraw = lamportsToWithdraw * rate;
@@ -209,7 +154,7 @@ export class ESol {
             }
         }
         const poolTokenAccount = await Token.getAssociatedTokenAddress(ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, stakePool.account.data.poolMint, tokenOwner);
-        const tokenAccount = await getTokenAccount(CONNECTION, poolTokenAccount, stakePool.account.data.poolMint);
+        const tokenAccount = await getTokenAccount(connection, poolTokenAccount, stakePool.account.data.poolMint);
         if (!tokenAccount) {
             throw new Error('Invalid token account');
         }
@@ -230,7 +175,7 @@ export class ESol {
             StakePoolProgram.programId.toBuffer(),
         ], StakePoolProgram.programId);
         const communityTokenStakingRewardsPubkey = communityTokenStakingRewardsInfo[0];
-        const communityTokenStakingRewardsAccount = await CONNECTION.getAccountInfo(communityTokenStakingRewardsPubkey);
+        const communityTokenStakingRewardsAccount = await connection.getAccountInfo(communityTokenStakingRewardsPubkey);
         // We can be sure that this account already exists, as it is created when you deposit.
         // But there are some number of users who made a deposit before updating the code with DAO strategy,
         // so here we create an account especially for them.
@@ -241,13 +186,13 @@ export class ESol {
             StakePoolProgram.programId.toBuffer(),
         ], StakePoolProgram.programId);
         const communityTokenPubkey = communityTokenDtoInfo[0];
-        const communityTokenAccount = await CONNECTION.getAccountInfo(communityTokenPubkey);
+        const communityTokenAccount = await connection.getAccountInfo(communityTokenPubkey);
         if (!communityTokenAccount) {
             throw Error('Community token is not exist'); // if isDaoEnabled -> error should NOT happened
         }
         const communityTokenInfo = COMMUNITY_TOKEN_LAYOUT.decode(communityTokenAccount.data);
         // check associatedTokenAccount for RENT 165 BYTES FOR RENTs
-        const daoCommunityTokenReceiverAccount = await addAssociatedTokenAccount(CONNECTION, tokenOwner, communityTokenInfo.tokenMint, instructions);
+        const daoCommunityTokenReceiverAccount = await addAssociatedTokenAccount(connection, tokenOwner, communityTokenInfo.tokenMint, instructions);
         // communityTokenStakingRewardsCounter
         const communityTokenStakingRewardsCounterDtoInfo = await PublicKey.findProgramAddress([
             Buffer.from(this.config.seedPrefixCommunityTokenStakingRewardsCounter),
@@ -255,7 +200,7 @@ export class ESol {
             StakePoolProgram.programId.toBuffer(),
         ], StakePoolProgram.programId);
         const communityStakingRewardsCounterPubkey = communityTokenStakingRewardsCounterDtoInfo[0];
-        const communityTokenStakingRewardsCounterAccount = await CONNECTION.getAccountInfo(communityStakingRewardsCounterPubkey);
+        const communityTokenStakingRewardsCounterAccount = await connection.getAccountInfo(communityStakingRewardsCounterPubkey);
         if (!communityTokenStakingRewardsCounterAccount) {
             throw Error('Community token staking reward counter is not exist'); // if isDaoEnabled -> error should NOT happened
         }
@@ -299,17 +244,17 @@ export class ESol {
         const transaction = new Transaction();
         instructions.forEach((instruction) => transaction.add(instruction));
         transaction.feePayer = solReceiver;
-        transaction.recentBlockhash = (await CONNECTION.getRecentBlockhash()).blockhash;
+        transaction.recentBlockhash = (await connection.getRecentBlockhash()).blockhash;
         transaction.sign(...signers);
         return transaction;
     }
-    async withdrawSolTransaction(userAddress, eSolAmount, stakeReceiver, poolTokenAccount) {
+    async createWithdrawSolTransaction(userAddress, eSolAmount, stakeReceiver, poolTokenAccount) {
         var _a, _b;
-        const CONNECTION = this.config.connection;
+        const { connection } = this.config;
         const stakePoolAddress = this.config.eSOLStakePoolAddress;
-        const stakePool = await getStakePoolAccount(CONNECTION, stakePoolAddress);
+        const stakePool = await getStakePoolAccount(connection, stakePoolAddress);
         const lamportsToWithdraw = solToLamports(eSolAmount);
-        const userSolBalance = await CONNECTION.getBalance(userAddress, 'confirmed');
+        const userSolBalance = await connection.getBalance(userAddress, 'confirmed');
         const transactionFee = solToLamports(TRANSACTION_FEE);
         const rentExemptionFee = solToLamports(RENT_EXEMPTION_FEE);
         if (userSolBalance < transactionFee + rentExemptionFee) {
@@ -318,7 +263,7 @@ export class ESol {
         // dao part
         const daoStateDtoInfo = await PublicKey.findProgramAddress([Buffer.from(this.config.seedPrefixDaoState), stakePoolAddress.toBuffer(), StakePoolProgram.programId.toBuffer()], StakePoolProgram.programId);
         const daoStateDtoPubkey = daoStateDtoInfo[0];
-        const daoStateDtoInfoAccount = await CONNECTION.getAccountInfo(daoStateDtoPubkey);
+        const daoStateDtoInfoAccount = await connection.getAccountInfo(daoStateDtoPubkey);
         if (!daoStateDtoInfoAccount) {
             throw Error("Didn't find dao state account");
         }
@@ -330,7 +275,7 @@ export class ESol {
         if (!poolTokenAccount) {
             poolTokenAccount = await Token.getAssociatedTokenAddress(ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, stakePool.account.data.poolMint, userAddress);
         }
-        const tokenAccount = await getTokenAccount(CONNECTION, poolTokenAccount, stakePool.account.data.poolMint);
+        const tokenAccount = await getTokenAccount(connection, poolTokenAccount, stakePool.account.data.poolMint);
         if (!tokenAccount) {
             throw new Error('Invalid token account');
         }
@@ -352,7 +297,7 @@ export class ESol {
             StakePoolProgram.programId.toBuffer(),
         ], StakePoolProgram.programId);
         const communityTokenStakingRewardsPubkey = communityTokenStakingRewardsInfo[0];
-        const communityTokenStakingRewardsAccount = await CONNECTION.getAccountInfo(communityTokenStakingRewardsPubkey);
+        const communityTokenStakingRewardsAccount = await connection.getAccountInfo(communityTokenStakingRewardsPubkey);
         // WE SHOULD CHECK NEXT PART IF USER WITHDRAW !!NOT!! ALL ESOL
         // We can be sure that this account already exists, as it is created when you deposit.
         // But there are some number of users who made a deposit before updating the code with DAO strategy,
@@ -364,13 +309,13 @@ export class ESol {
             StakePoolProgram.programId.toBuffer(),
         ], StakePoolProgram.programId);
         const communityTokenPubkey = communityTokenDtoInfo[0];
-        const communityTokenAccount = await CONNECTION.getAccountInfo(communityTokenPubkey);
+        const communityTokenAccount = await connection.getAccountInfo(communityTokenPubkey);
         if (!communityTokenAccount) {
             throw Error('Community token is not exist'); // if isDaoEnabled -> error should NOT happened
         }
         const communityTokenInfo = COMMUNITY_TOKEN_LAYOUT.decode(communityTokenAccount.data);
         // check associatedTokenAccount for RENT 165 BYTES FOR RENTs
-        const daoCommunityTokenReceiverAccount = await addAssociatedTokenAccount(CONNECTION, userAddress, communityTokenInfo.tokenMint, instructions);
+        const daoCommunityTokenReceiverAccount = await addAssociatedTokenAccount(connection, userAddress, communityTokenInfo.tokenMint, instructions);
         // }
         // communityTokenStakingRewardsCounter
         const communityTokenStakingRewardsCounterDtoInfo = await PublicKey.findProgramAddress([
@@ -379,7 +324,7 @@ export class ESol {
             StakePoolProgram.programId.toBuffer(),
         ], StakePoolProgram.programId);
         const communityStakingRewardsCounterPubkey = communityTokenStakingRewardsCounterDtoInfo[0];
-        const communityTokenStakingRewardsCounterAccount = await CONNECTION.getAccountInfo(communityStakingRewardsCounterPubkey);
+        const communityTokenStakingRewardsCounterAccount = await connection.getAccountInfo(communityStakingRewardsCounterPubkey);
         if (!communityTokenStakingRewardsCounterAccount) {
             throw Error('Community token staking reward counter is not exist'); // if isDaoEnabled -> error should NOT happened
         }
@@ -393,7 +338,7 @@ export class ESol {
             }));
         }
         instructions.push(Token.createApproveInstruction(TOKEN_PROGRAM_ID, poolTokenAccount, userTransferAuthority.publicKey, userAddress, [], lamportsToWithdraw));
-        const withdrawAccount = await prepareWithdrawAccounts(CONNECTION, stakePool.account.data, stakePoolAddress, lamportsToWithdraw);
+        const withdrawAccount = await prepareWithdrawAccounts(connection, stakePool.account.data, stakePoolAddress, lamportsToWithdraw);
         if (!withdrawAccount) {
             throw Error(`Not available at the moment. Please try again later. Sorry for the inconvenience.`);
         }
@@ -413,8 +358,8 @@ export class ESol {
         function incrementStakeAccount() {
             numberOfStakeAccounts++;
         }
-        const stakeReceiverAccountBalance = await CONNECTION.getMinimumBalanceForRentExemption(StakeProgram.space);
-        const stakeAccountPubkey = await newStakeAccount(CONNECTION, userAddress, instructions, stakeReceiverAccountBalance, numberOfStakeAccounts, incrementStakeAccount);
+        const stakeReceiverAccountBalance = await connection.getMinimumBalanceForRentExemption(StakeProgram.space);
+        const stakeAccountPubkey = await newStakeAccount(connection, userAddress, instructions, stakeReceiverAccountBalance, numberOfStakeAccounts, incrementStakeAccount);
         totalRentFreeBalances += stakeReceiverAccountBalance;
         stakeToReceive = stakeAccountPubkey;
         stakeReceiver = stakeAccountPubkey;
@@ -443,7 +388,7 @@ export class ESol {
         const transaction = new Transaction();
         instructions.forEach((instruction) => transaction.add(instruction));
         transaction.feePayer = userAddress;
-        transaction.recentBlockhash = (await CONNECTION.getRecentBlockhash()).blockhash;
+        transaction.recentBlockhash = (await connection.getRecentBlockhash()).blockhash;
         transaction.sign(...signers);
         return transaction;
     }

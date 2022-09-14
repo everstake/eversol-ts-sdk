@@ -251,39 +251,31 @@ export const STAKE_POOL_INSTRUCTION_LAYOUTS: {
   ///  13  [] Account for storing community token dto
   ///  14. [s] (Optional) Stake pool sol deposit authority.
   DepositSolDaoWithReferrer: {
-    index: 33,
+    index: 39,
     layout: BufferLayout.struct<any>([BufferLayout.u8('instruction'), BufferLayout.ns64('lamports')]),
   },
-  ///   Deposit SOL directly into the pool's reserve account with existing DAO`s community tokens strategy. The output is a "pool" token
+  ///   Deposit SOL directly into the pool’s reserve account with existing DAO`s community tokens strategy. The output is a “pool” token
   ///   representing ownership into the pool. Inputs are converted to the current ratio.
-  ///   This instructions is a part of our Referral program and must include a whitelisted referral.
+  ///   This instructions is a part of our Referral program v2, where referrer fee is paid from the manager/epoch fee,
+  //    and must include a whitelisted referral.
   ///
-  ///   0. [w] Stake pool
-  ///   1. [] Stake pool withdraw authority
-  ///   2. [w] Reserve stake account, to deposit SOL
-  ///   3. [s] Account providing the lamports to be deposited into the pool
-  ///   4. [w] User account to receive pool tokens
-  ///   5  [] User account to hold DAO`s community tokens
-  ///   6. [w] Account to receive fee tokens
-  ///   7. [w] Account to receive a portion of fee in SOL as referral fees
-  ///   8. [] Referrer list dto account
-  ///   9  '[w]` Account for storing metrics of deposit sol with refferer transaction
-  ///  10. [w] Metrics counter for deposit sol transactions (dto account)
-  ///  11. [w] Pool token mint account
-  ///  11. [] System program account
-  ///  12. [] Rent sysvar
-  ///  13. [] Token program id
-  ///  14. [w] Account for storing community token staking rewards dto
-  ///  15. [s] Wallet owner
-  ///  16. [] Account for storing community token dto
-  ///  17. [s] (Optional) Stake pool sol deposit authority.
+  ///   0. `[w]` Stake pool
+  ///   1. `[]` Stake pool withdraw authority
+  ///   2. `[w]` Reserve stake account, to deposit SOL
+  ///   3. `[s]` Account providing the lamports to be deposited into the pool
+  ///   4. `[w]` User account to receive pool tokens
+  ///   5  `[]` User account to hold DAO`s community tokens
+  ///   6. `[w]` Account to receive fee tokens
+  ///   7. `[]` Referrer id (their SOL account, fee may be paid in sol or esol later on)
+  ///   8. `[]` Referrer list dto account
+  ///   9. `[w]` Pool token mint account
+  ///  10. `[]` System program account
+  ///  11. `[]` Token program id
+  ///  12. `[w]` Account for storing community token staking rewards dto
+  ///  13. `[s]` Wallet owner
+  ///  14. `[]` Account for storing community token dto
+  ///  15. `[s]` (Optional) Stake pool sol deposit authority.
   /// DaoStrategyDepositSolWithReferrer(u64),
-
-  ///  (Manager only) Update SOL deposit authority
-  ///
-  ///  0. `[w]` StakePool
-  ///  1. `[s]` Manager
-  ///  2. '[]` New authority pubkey or none
   SetFundingAuthority: {
     index: 15,
     layout: BufferLayout.struct<any>([BufferLayout.u8('instruction'), BufferLayout.u32('fundingType')]),
@@ -489,8 +481,6 @@ export type DepositSolDaoWithReferrerParams = {
   lamports: number;
   referrerAccount: PublicKey;
   referrerList: PublicKey;
-  metricsDepositReferrerDtoAccount: PublicKey;
-  metricsDepositReferrerCounterDtoAccount: PublicKey;
 };
 
 export type CreateCommunityTokenStakingRewardsParams = {
@@ -708,12 +698,10 @@ export class StakePoolProgram {
       lamportsFrom,
       poolTokensTo,
       managerFeeAccount,
+      referrerAccount,
       poolMint,
       lamports,
-      referrerAccount,
       referrerList,
-      metricsDepositReferrerDtoAccount,
-      metricsDepositReferrerCounterDtoAccount,
     } = params;
 
     const type = STAKE_POOL_INSTRUCTION_LAYOUTS.DepositSolDaoWithReferrer;
@@ -729,11 +717,8 @@ export class StakePoolProgram {
       { pubkey: managerFeeAccount, isSigner: false, isWritable: true },
       { pubkey: referrerAccount, isSigner: false, isWritable: true },
       { pubkey: referrerList, isSigner: false, isWritable: false },
-      { pubkey: metricsDepositReferrerDtoAccount, isSigner: false, isWritable: true },
-      { pubkey: metricsDepositReferrerCounterDtoAccount, isSigner: false, isWritable: true },
       { pubkey: poolMint, isSigner: false, isWritable: true },
       { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-      { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
       { pubkey: this.tokenProgramId, isSigner: false, isWritable: false },
       { pubkey: communityTokenStakingRewards, isSigner: false, isWritable: true },
       { pubkey: ownerWallet, isSigner: true, isWritable: false },

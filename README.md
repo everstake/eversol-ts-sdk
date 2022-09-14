@@ -36,7 +36,7 @@ Stake SOL and get your eSOL:
 
 ```ts
 ...
-const depositSolTransaction = await eSol.depositSolTransaction(userAddress, amountLamports, referrerAccount)
+const depositSolTransaction = await eSol.createDepositSolTransactionWithReferrer(userAddress, amountLamports, referrerAccount)
 // referrerAccount - should exist in referrer list (contact our team to add your address)
 // than sign and send the `transaction`
 ```
@@ -47,7 +47,7 @@ Skip the basic Solana cool-down period and undelegate stake instantly. If the fe
 
 ```ts
 ...
-const instantUnstakeTransaction = await eSol.unDelegateSolTransaction(userAddress, eSolAmount)
+const instantUnstakeTransaction = await eSol.createUnDelegateSolTransaction(userAddress, eSolAmount)
 // than sign and send the `transaction`
 ```
 
@@ -57,7 +57,7 @@ Your stake will be deactivated with the beginning of a new epoch. Once the stake
 
 ```ts
 ...
-const delayedUnstakeTransaction = await eSol.withdrawSolTransaction(userAddress, eSolAmount)
+const delayedUnstakeTransaction = await eSol.createWithdrawSolTransaction(userAddress, eSolAmount)
 // than sign and send the `transaction`
 ```
 

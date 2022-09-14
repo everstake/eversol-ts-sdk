@@ -3,6 +3,7 @@ import { PublicKey } from '@solana/web3.js';
 import { ESol } from '../src/eSol';
 import { getStakePoolAccount } from '../src/service/service';
 import { lamportsToSol, solToLamports } from '../src/utils';
+
 import {
   sendLamportsToTestingWallet,
   CONNECTION,
@@ -41,7 +42,7 @@ describe('ESol testing SDK', () => {
   describe('Delegate SOL', () => {
     it('check for correct lamports value', async () => {
       if (depositAmount === 0) {
-        await expect(everSol.depositSolTransaction(user.publicKey, depositAmount, referrerAccount)).rejects.toThrow(
+        await expect(everSol.createDepositSolTransactionWithReferrer(user.publicKey, depositAmount, referrerAccount)).rejects.toThrow(
           "You can't deposit 0 SOL",
         );
       }
@@ -57,7 +58,7 @@ describe('ESol testing SDK', () => {
 
     it('check SOL balance after transaction', async () => {
       try {
-        const depositTransaction = await everSol.depositSolTransaction(user.publicKey, depositAmount, referrerAccount);
+        const depositTransaction = await everSol.createDepositSolTransactionWithReferrer(user.publicKey, depositAmount, referrerAccount);
         const transactionHash = await PROVIDER.send(depositTransaction);
         console.log('deposit transaction hash:', transactionHash);
         const transInfo = await CONNECTION.getTransaction(transactionHash, { commitment: 'confirmed' });
@@ -95,7 +96,7 @@ describe('ESol testing SDK', () => {
 
     it('check transaction result', async () => {
       try {
-        const unDelegateTransaction = await everSol.unDelegateSolTransaction(user.publicKey, undelegateAmount);
+        const unDelegateTransaction = await everSol.createUnDelegateSolTransaction(user.publicKey, undelegateAmount);
         const transactionHash = await PROVIDER.send(unDelegateTransaction);
         console.log('unDelegate transaction hash:', transactionHash);
         const transInfo = await CONNECTION.getTransaction(transactionHash, { commitment: 'confirmed' });
@@ -121,7 +122,7 @@ describe('ESol testing SDK', () => {
 
     it('check transaction result', async () => {
       try {
-        const withdrawSolTransaction = await everSol.withdrawSolTransaction(user.publicKey, undelegateAmount);
+        const withdrawSolTransaction = await everSol.createWithdrawSolTransaction(user.publicKey, undelegateAmount);
         const transactionHash = await PROVIDER.send(withdrawSolTransaction);
         console.log('delayed uStake transaction hash:', transactionHash);
 
