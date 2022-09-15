@@ -3,7 +3,7 @@ import { StakePoolProgram } from '../service/stakepool-program';
 
 export type ClusterType = 'mainnet-beta' | 'testnet';
 
-const TESTNET_STAKEPOOL_ACCOUNT = 'w55eR1rNUjD1hLxvxsVtBDm98iPdSWTbLmTh8B1WA4k';
+const TESTNET_STAKEPOOL_ACCOUNT = 'EEx8JxE1hhpnQw1fLwMY1aLsYdCcphZyrYC3SLSjvx5R';
 const MAINNET_STAKEPOOL_ACCOUNT = 'GUAMR8ciiaijraJeLDEDrFVaueLm9YzWWY9R7CBPL9rA';
 
 const TESTNET_STAKEPOOL_PROGRAM_ID = '4uvLNZaB1VpeYZsFnXDw7sLrhuLo3psk3ka5ajWtSGgb';
@@ -16,7 +16,7 @@ export class ESolConfig {
   seedPrefixCommunityToken = 'community_token';
   seedPrefixCommunityTokenStakingRewards = 'c_t_staking_rewards';
   seedPrefixCommunityTokenStakingRewardsCounter = 'c_t_staking_rewards_counter';
-  
+
   referrerListPrefix = 'referrer_list';
   metricCounterPrefix = 'metrics_deposit_referrer_counter';
   metricPrefix = 'metric_deposit_referrer';
