@@ -574,80 +574,86 @@ export class ESol {
       ),
     );
 
-    const withdrawAccount: any = await prepareWithdrawAccounts(
+    const withdrawAccounts: any = await prepareWithdrawAccounts(
       connection,
       stakePool.account.data,
       stakePoolAddress,
       lamportsToWithdraw,
     );
 
-    if (!withdrawAccount) {
-      throw Error(`Not available at the moment. Please try again later. Sorry for the inconvenience.`);
+    if (withdrawAccounts.length === 0) {
+      throw Error('Not available at the moment. Please try again later. Sorry for the inconvenience.');
     }
-    const availableSol = lamportsToSol(withdrawAccount.poolAmount);
 
-    if (withdrawAccount.poolAmount < lamportsToWithdraw) {
+    let availableSol = 0;
+
+    withdrawAccounts.forEach((account: any) => {
+      availableSol += account.poolAmount;
+    });
+
+    if (availableSol < lamportsToWithdraw) {
       throw Error(
-        `Currently, you can undelegate only ${availableSol} SOL within one transaction due to delayed unstake limitations. Please unstake the desired amount in few transactions. Note that you will be able to track your unstaked SOL in the “Wallet” tab as a summary of transactions!.`,
+        `Currently, you can undelegate only ${lamportsToSol(
+          availableSol,
+        )} SOL within one transaction due to delayed unstake limitations. Please unstake the desired amount in few transactions.
+      Note that you will be able to track your unstaked SOL in the “Wallet” tab as a summary of transactions!.`,
       );
     }
-
-    const solWithdrawAmount = Math.ceil(calcLamportsWithdrawAmount(stakePool.account.data, withdrawAccount.poolAmount));
-
-    let infoMsg = `Withdrawing ◎${solWithdrawAmount},
-    from stake account ${withdrawAccount.stakeAddress?.toBase58()}`;
-
-    if (withdrawAccount.voteAddress) {
-      infoMsg = `${infoMsg}, delegated to ${withdrawAccount.voteAddress?.toBase58()}`;
-    }
-
-    let stakeToReceive: any;
     let numberOfStakeAccounts = 1;
-    let totalRentFreeBalances = 0;
 
     function incrementStakeAccount() {
-      numberOfStakeAccounts++;
+      numberOfStakeAccounts += 1;
     }
 
-    const stakeReceiverAccountBalance = await connection.getMinimumBalanceForRentExemption(StakeProgram.space);
+    // Go through prepared accounts and withdraw/claim them
+    // eslint-disable-next-line no-restricted-syntax
+    for await (const withdrawAccount of withdrawAccounts) {
+      if (poolTokenAccount) {
+        incrementStakeAccount();
 
-    const stakeAccountPubkey = await newStakeAccount(
-      connection,
-      userAddress,
-      instructions,
-      stakeReceiverAccountBalance,
-      numberOfStakeAccounts,
-      incrementStakeAccount,
-    );
-    totalRentFreeBalances += stakeReceiverAccountBalance;
-    stakeToReceive = stakeAccountPubkey;
-    stakeReceiver = stakeAccountPubkey;
+        const stakeReceiverAccountBalance = await connection.getMinimumBalanceForRentExemption(StakeProgram.space);
 
-    instructions.push(
-      StakePoolProgram.withdrawStakeWithDao({
-        daoCommunityTokenReceiverAccount,
-        communityTokenStakingRewards: communityTokenStakingRewardsPubkey,
-        ownerWallet: userAddress,
-        communityTokenPubkey,
-        stakePool: stakePoolAddress,
-        validatorList: stakePool.account.data.validatorList,
-        validatorStake: withdrawAccount.stakeAddress,
-        destinationStake: stakeToReceive,
-        destinationStakeAuthority: userAddress,
-        sourceTransferAuthority: userTransferAuthority.publicKey,
-        sourcePoolAccount: poolTokenAccount,
-        managerFeeAccount: stakePool.account.data.managerFeeAccount,
-        poolMint: stakePool.account.data.poolMint,
-        poolTokens: withdrawAccount.poolAmount,
-        withdrawAuthority,
-      }),
-    );
+        const stakeToReceive = await newStakeAccount(
+          connection,
+          userAddress,
+          instructions,
+          stakeReceiverAccountBalance,
+          numberOfStakeAccounts,
+          incrementStakeAccount,
+        );
+        stakeReceiver = stakeToReceive;
 
-    const deactivateTransaction = StakeProgram.deactivate({
-      stakePubkey: stakeToReceive,
-      authorizedPubkey: userAddress,
-    });
-    instructions.push(...deactivateTransaction.instructions);
+        instructions.push(
+          StakePoolProgram.withdrawStakeWithDao({
+            daoCommunityTokenReceiverAccount,
+            communityTokenStakingRewards: communityTokenStakingRewardsPubkey,
+            ownerWallet: userAddress,
+            communityTokenPubkey,
+            stakePool: stakePoolAddress,
+            validatorList: stakePool.account.data.validatorList,
+            validatorStake: withdrawAccount.stakeAddress,
+            destinationStake: stakeToReceive,
+            destinationStakeAuthority: userAddress,
+            sourceTransferAuthority: userTransferAuthority.publicKey,
+            sourcePoolAccount: poolTokenAccount,
+            managerFeeAccount: stakePool.account.data.managerFeeAccount,
+            poolMint: stakePool.account.data.poolMint,
+            poolTokens: withdrawAccount.poolAmount,
+            withdrawAuthority,
+          }),
+        );
+
+        const deactivateTransaction = StakeProgram.deactivate({
+          stakePubkey: stakeToReceive,
+          authorizedPubkey: userAddress,
+        });
+
+        for (const deactivateInstruction of deactivateTransaction.instructions) {
+          const instruction = new TransactionInstruction(deactivateInstruction);
+          instructions.push(instruction);
+        }
+      }
+    }
 
     const transaction = new Transaction();
     instructions.forEach((instruction: any) => transaction.add(instruction));

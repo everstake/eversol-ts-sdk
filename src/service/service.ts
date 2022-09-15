@@ -14,12 +14,14 @@ import {
   ValidatorStakeInfoStatus,
   ValidatorList,
 } from '../layouts/index';
-import { StakePool } from "./layouts"
+import { StakePool } from './layouts';
 
 import { findTransientStakeProgramAddress } from './program-address';
 import { StakePoolProgram } from './stakepool-program';
 
 import BN from 'bn.js';
+import { lamportsToSol } from '../utils';
+import { MIN_AMOUNT_TO_LEAVE_ON_VALIDATOR, MIN_AMOUNT_TO_WITHDRAW_FROM_VALIDATOR } from './constants';
 
 const FAILED_TO_FIND_ACCOUNT = 'Failed to find account';
 const INVALID_ACCOUNT_OWNER = 'Invalid account owner';
@@ -245,14 +247,21 @@ async function prepareWithdrawAccounts(
 
   // Prepare the list of accounts to withdraw from
   // const withdrawFrom: WithdrawAccount[] = [];
-  let withdrawFrom;
-  const remainingAmount = amount;
+  const withdrawFrom: any[] = [];
+  let remainingAmount = amount;
+
+  const maxWithdrawAccounts = 2;
+  let i = 1;
 
   // for (const type of ["preferred", "active", "transient", "reserve"]) {
   for (const type of ['active']) {
     const filteredAccounts = accounts.filter((a) => a.type === type);
 
     for (const { stakeAddress, voteAddress, lamports } of filteredAccounts) {
+      if (i > maxWithdrawAccounts) {
+        break;
+      }
+
       let availableForWithdrawal = Math.floor(calcPoolTokensForDeposit(stakePool, lamports));
       if (!stakePool.stakeWithdrawalFee.denominator.isZero()) {
         availableForWithdrawal = divideBnToNumber(
@@ -261,19 +270,27 @@ async function prepareWithdrawAccounts(
         );
       }
 
+      if (lamportsToSol(availableForWithdrawal) <= MIN_AMOUNT_TO_WITHDRAW_FROM_VALIDATOR) {
+        // don't withdraw if validator has less than 1.2 SOL
+        continue;
+      }
+
+      // leave SOL on validator for other actions
+      availableForWithdrawal -= MIN_AMOUNT_TO_LEAVE_ON_VALIDATOR;
+
       const poolAmount = Math.min(availableForWithdrawal, remainingAmount);
       if (poolAmount <= 0) {
         continue;
       }
 
       // Those accounts will be withdrawn completely with `claim` instruction
-      withdrawFrom = { stakeAddress, voteAddress, poolAmount };
-      // new
-      break;
-      // remainingAmount -= poolAmount;
-      // if (remainingAmount == 0) {
-      //   break;
-      // }
+      withdrawFrom.push({ stakeAddress, voteAddress, poolAmount });
+      remainingAmount -= poolAmount;
+      i += 1;
+
+      if (remainingAmount === 0) {
+        break;
+      }
     }
     if (remainingAmount === 0) {
       break;
