@@ -1,3 +1,4 @@
+/* tslint:disable:no-console */
 import { PublicKey } from '@solana/web3.js';
 
 import { ESol } from '../src/eSol';
@@ -42,9 +43,9 @@ describe('ESol testing SDK', () => {
   describe('Delegate SOL', () => {
     it('check for correct lamports value', async () => {
       if (depositAmount === 0) {
-        await expect(everSol.createDepositSolTransactionWithReferrer(user.publicKey, depositAmount, referrerAccount)).rejects.toThrow(
-          "You can't deposit 0 SOL",
-        );
+        await expect(
+          everSol.createDepositSolTransactionWithReferrer(user.publicKey, depositAmount, referrerAccount),
+        ).rejects.toThrow("You can't deposit 0 SOL");
       }
     });
 
@@ -58,7 +59,11 @@ describe('ESol testing SDK', () => {
 
     it('check SOL balance after transaction', async () => {
       try {
-        const depositTransaction = await everSol.createDepositSolTransactionWithReferrer(user.publicKey, depositAmount, referrerAccount);
+        const depositTransaction = await everSol.createDepositSolTransactionWithReferrer(
+          user.publicKey,
+          depositAmount,
+          referrerAccount,
+        );
         const transactionHash = await PROVIDER.send(depositTransaction);
         console.log('deposit transaction hash:', transactionHash);
         const transInfo = await CONNECTION.getTransaction(transactionHash, { commitment: 'confirmed' });
@@ -131,11 +136,11 @@ describe('ESol testing SDK', () => {
           (account: any) => account.owner === user.publicKey.toString(),
         )?.uiTokenAmount.uiAmount;
 
-
         if (newESolBalance) {
           expect(lamportsToSol(userESoLamportsBalance)).toBeGreaterThan(lamportsToSol(newESolBalance));
         }
       } catch (err) {
+        // tslint:disable-next-line:no-console
         console.log(err);
       }
     });
