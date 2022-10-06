@@ -8,6 +8,7 @@ import checkCommunityTokenStakingAccount from './service/checkCommunityTokenStak
 import { DAO_STATE_LAYOUT, COMMUNITY_TOKEN_LAYOUT, REFERRER_LIST_LAYOUT } from './service/layouts';
 import { TRANSACTION_FEE, RENT_EXEMPTION_FEE } from './service/constants';
 import { ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, createApproveInstruction, getAssociatedTokenAddress, } from '@solana/spl-token';
+import createWithdrawStakeAccountInstruction from './service/createWithdrawStakeAccountInstruction';
 export class ESol {
     constructor(clusterType = 'testnet') {
         this.config = new ESolConfig(clusterType);
@@ -121,6 +122,18 @@ export class ESol {
         if (userSolBalance < transactionFee + rentExemptionFee) {
             throw Error("You don't have enough SOL to complete this transaction");
         }
+        const reserveStake = await connection.getAccountInfo(stakePool.account.data.reserveStake);
+        const stakeReceiverAccountBalance = await connection.getMinimumBalanceForRentExemption(StakeProgram.space);
+        const rateOfExchange = stakePool.account.data.rateOfExchange;
+        const rate = rateOfExchange ? rateOfExchange.numerator.toNumber() / rateOfExchange.denominator.toNumber() : 1;
+        const solToWithdraw = lamportsToWithdraw * rate;
+        if ((reserveStake === null || reserveStake === void 0 ? void 0 : reserveStake.lamports) || (reserveStake === null || reserveStake === void 0 ? void 0 : reserveStake.lamports) === 0) {
+            const availableAmount = (reserveStake === null || reserveStake === void 0 ? void 0 : reserveStake.lamports) - stakeReceiverAccountBalance;
+            if (availableAmount < solToWithdraw) {
+                const transactionWithUnstakeIt = await this.createWithdrawSolTransaction(userAddress, eSolAmount, true);
+                return transactionWithUnstakeIt;
+            }
+        }
         // dao part
         const daoStateDtoInfo = await PublicKey.findProgramAddress([Buffer.from(this.config.seedPrefixDaoState), stakePoolAddress.toBuffer(), StakePoolProgram.programId.toBuffer()], StakePoolProgram.programId);
         const daoStateDtoPubkey = daoStateDtoInfo[0];
@@ -132,18 +145,6 @@ export class ESol {
         const isDaoEnabled = daoState.isEnabled;
         if (!isDaoEnabled) {
             throw Error('Dao is not enable'); // it should never happened!!!
-        }
-        const reserveStake = await connection.getAccountInfo(stakePool.account.data.reserveStake);
-        const stakeReceiverAccountBalance = await connection.getMinimumBalanceForRentExemption(StakeProgram.space);
-        const rateOfExchange = stakePool.account.data.rateOfExchange;
-        const rate = rateOfExchange ? rateOfExchange.numerator.toNumber() / rateOfExchange.denominator.toNumber() : 1;
-        const solToWithdraw = lamportsToWithdraw * rate;
-        if ((reserveStake === null || reserveStake === void 0 ? void 0 : reserveStake.lamports) || (reserveStake === null || reserveStake === void 0 ? void 0 : reserveStake.lamports) === 0) {
-            const availableAmount = (reserveStake === null || reserveStake === void 0 ? void 0 : reserveStake.lamports) - stakeReceiverAccountBalance;
-            if (availableAmount < solToWithdraw) {
-                const availableTokenAmount = +availableAmount / +rate;
-                throw new Error(`Not enough balance in the pool reserve account. The MAX available amount to withdraw is ${lamportsToSol(+availableTokenAmount).toFixed(3)}. To undelegate larger amount of tokens, please proceed to the regular “Unstake” tab`);
-            }
         }
         const poolTokenAccount = await getAssociatedTokenAddress(stakePool.account.data.poolMint, tokenOwner, false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID);
         const tokenAccount = await getTokenAccount(connection, poolTokenAccount, stakePool.account.data.poolMint);
@@ -241,7 +242,7 @@ export class ESol {
         return transaction;
     }
     async createWithdrawSolTransaction(userAddress, eSolAmount, withUnstakeIt = false, stakeReceiver, poolTokenAccount) {
-        const { connection } = this.config;
+        const { connection, unstakeItPoolAddress, unstakeProgramId } = this.config;
         const stakePoolAddress = this.config.eSOLStakePoolAddress;
         const stakePool = await getStakePoolAccount(connection, stakePoolAddress);
         const lamportsToWithdraw = solToLamports(eSolAmount);
@@ -380,13 +381,8 @@ export class ESol {
                     instructions.push(instruction);
                 }
                 if (withUnstakeIt) {
-                    // const unstakeItInstructions = await createWithdrawStakeAccountInstruction(
-                    //   connection,
-                    //   stakeToReceive,
-                    //   'Deactivating',
-                    //   userAddress,
-                    // );
-                    // instructions.push(...unstakeItInstructions);
+                    const unstakeItInstructions = await createWithdrawStakeAccountInstruction(connection, unstakeItPoolAddress, unstakeProgramId, stakeToReceive, 'Deactivating', userAddress);
+                    instructions.push(...unstakeItInstructions);
                 }
             }
         }
