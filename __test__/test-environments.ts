@@ -1,7 +1,7 @@
 import { PublicKey, Connection, clusterApiUrl, Keypair, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { solToLamports, lamportsToSol } from '../src/utils';
 import { Provider, Wallet } from '@project-serum/anchor';
-import { ASSOCIATED_TOKEN_PROGRAM_ID, Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, getAssociatedTokenAddress } from '@solana/spl-token';
 import { getTokenAccount, StakePoolAccount } from '../src/service/service';
 
 export const NETWORK_TYPE = 'testnet'; // you can change it for 'mainnet-beta'
@@ -34,11 +34,12 @@ export const sendLamportsToTestingWallet = async (account: PublicKey) => {
 };
 
 export const getESolBalance = async (stakePool: StakePoolAccount, userPubkey: PublicKey) => {
-  const poolTokenAccount = await Token.getAssociatedTokenAddress(
-    ASSOCIATED_TOKEN_PROGRAM_ID,
-    TOKEN_PROGRAM_ID,
+  const poolTokenAccount = await getAssociatedTokenAddress(
     stakePool.account.data.poolMint,
     userPubkey,
+    false,
+    TOKEN_PROGRAM_ID,
+    ASSOCIATED_TOKEN_PROGRAM_ID,
   );
 
   const tokenAccount = await getTokenAccount(CONNECTION, poolTokenAccount, stakePool.account.data.poolMint);

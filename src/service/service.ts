@@ -6,7 +6,12 @@ import {
   SystemProgram,
   StakeProgram,
 } from '@solana/web3.js';
-import { Token, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import {
+  TOKEN_PROGRAM_ID,
+  ASSOCIATED_TOKEN_PROGRAM_ID,
+  getAssociatedTokenAddress,
+  createAssociatedTokenAccountInstruction,
+} from '@solana/spl-token';
 import {
   STAKE_POOL_LAYOUT,
   ACCOUNT_LAYOUT,
@@ -93,11 +98,12 @@ async function addAssociatedTokenAccount(
   mint: PublicKey,
   instructions: TransactionInstruction[],
 ) {
-  const associatedAddress = await Token.getAssociatedTokenAddress(
-    ASSOCIATED_TOKEN_PROGRAM_ID,
-    TOKEN_PROGRAM_ID,
+  const associatedAddress = await getAssociatedTokenAddress(
     mint,
     owner,
+    false,
+    TOKEN_PROGRAM_ID,
+    ASSOCIATED_TOKEN_PROGRAM_ID,
   );
 
   // This is the optimum logic, considering TX fee, client-side computation,
@@ -119,13 +125,13 @@ async function addAssociatedTokenAccount(
       // accounts meanwhile
       try {
         instructions.push(
-          Token.createAssociatedTokenAccountInstruction(
-            ASSOCIATED_TOKEN_PROGRAM_ID,
-            TOKEN_PROGRAM_ID,
-            mint,
+          createAssociatedTokenAccountInstruction(
+            owner,
             associatedAddress,
             owner,
-            owner,
+            mint,
+            TOKEN_PROGRAM_ID,
+            ASSOCIATED_TOKEN_PROGRAM_ID,
           ),
         );
       } catch (errr) {
@@ -177,6 +183,7 @@ async function prepareWithdrawAccounts(
   stakePool: StakePool,
   stakePoolAddress: PublicKey,
   amount: number,
+  maxWithdrawAccounts: number,
 ): Promise<any> {
   const validatorListAcc = await connection.getAccountInfo(stakePool.validatorList);
   const validatorList = VALIDATOR_LIST_LAYOUT.decode(validatorListAcc!.data) as ValidatorList;
@@ -250,7 +257,7 @@ async function prepareWithdrawAccounts(
   const withdrawFrom: any[] = [];
   let remainingAmount = amount;
 
-  const maxWithdrawAccounts = 2;
+  // Max 2 accounts to prevent an error: "Transaction too large"
   let i = 1;
 
   // for (const type of ["preferred", "active", "transient", "reserve"]) {

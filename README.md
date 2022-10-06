@@ -57,7 +57,7 @@ Your stake will be deactivated with the beginning of a new epoch. Once the stake
 
 ```ts
 ...
-const delayedUnstakeTransaction = await eSol.createWithdrawSolTransaction(userAddress, eSolAmount)
+const delayedUnstakeTransaction = await eSol.createWithdrawSolTransaction(userAddress, eSolAmount, false)
 // than sign and send the `transaction`
 ```
 
