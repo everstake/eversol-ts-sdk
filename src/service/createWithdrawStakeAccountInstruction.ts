@@ -17,9 +17,9 @@ import { USTAKE_IT_REFERRER_ADDRESS } from './constants';
 
 const createWithdrawStakeAccountInstruction = async (
   connection: any,
-  stakeAccPubkey: PublicKey,
   unstakeItPoolAddress: PublicKey,
   unstakeItProgramId: PublicKey,
+  stakeAccPubkey: PublicKey,
   accountStatus: string,
   walletAddress: PublicKey,
 ) => {
