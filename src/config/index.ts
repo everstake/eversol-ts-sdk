@@ -1,18 +1,24 @@
 import { PublicKey, Connection, clusterApiUrl } from '@solana/web3.js';
 import { StakePoolProgram } from '../service/stakepool-program';
 
-export type ClusterType = 'mainnet-beta' | 'testnet';
+import {
+  TESTNET_STAKEPOOL_ACCOUNT,
+  MAINNET_STAKEPOOL_ACCOUNT,
+  TESTNET_STAKEPOOL_PROGRAM_ID,
+  MAINNET_STAKEPOOL_PROGRAM_ID,
+  USTAKE_IT_POOL_ADDRESS_MAINNET,
+  USTAKE_IT_POOL_ADDRESS_TESTNET,
+  USTAKE_IT_PROGRAM_ID_MAINNET,
+  USTAKE_IT_PROGRAM_ID_TESTNET,
+  DEVNET_STAKEPOOL_ACCOUNT,
+  DEVNET_STAKEPOOL_PROGRAM_ID,
+  USTAKE_IT_POOL_ADDRESS_DEVNET,
+  USTAKE_IT_PROG_ID_DEVNET,
+  EVERSTAKE_RPC,
+  DEVNET_RPC,
+} from '../service/constants';
 
-const TESTNET_STAKEPOOL_ACCOUNT = 'EEx8JxE1hhpnQw1fLwMY1aLsYdCcphZyrYC3SLSjvx5R';
-const MAINNET_STAKEPOOL_ACCOUNT = 'GUAMR8ciiaijraJeLDEDrFVaueLm9YzWWY9R7CBPL9rA';
-
-const TESTNET_STAKEPOOL_PROGRAM_ID = '4uvLNZaB1VpeYZsFnXDw7sLrhuLo3psk3ka5ajWtSGgb';
-const MAINNET_STAKEPOOL_PROGRAM_ID = 'EverSFw9uN5t1V8kS3ficHUcKffSjwpGzUSGd7mgmSks';
-
-const USTAKE_IT_POOL_ADDRESS_MAINNET = new PublicKey('FypPtwbY3FUfzJUtXHSyVRokVKG2jKtH29FmK4ebxRSd');
-const USTAKE_IT_POOL_ADDRESS_TESTNET = new PublicKey('5Fs8HnjzV5yys8eJwTu5g74cem8s771edtHjgRmXqrqo');
-const USTAKE_IT_PROGRAM_ID_MAINNET = new PublicKey('unpXTU2Ndrc7WWNyEhQWe4udTzSibLPi25SXv2xbCHQ');
-const USTAKE_IT_PROGRAM_ID_TESTNET = new PublicKey('6KBz9djJAH3gRHscq9ujMpyZ5bCK9a27o3ybDtJLXowz');
+export type ClusterType = 'mainnet-beta' | 'testnet' | 'devnet';
 
 export class ESolConfig {
   eSOLProgramId: PublicKey;
@@ -32,15 +38,22 @@ export class ESolConfig {
   publicKey: PublicKey | null = null;
 
   constructor(clusterType: ClusterType) {
-    const API_ENDPOINT = clusterApiUrl(clusterType);
-    this.connection = new Connection(API_ENDPOINT);
-
     switch (clusterType) {
       case 'testnet':
         this.eSOLStakePoolAddress = new PublicKey(TESTNET_STAKEPOOL_ACCOUNT);
         this.eSOLProgramId = new PublicKey(TESTNET_STAKEPOOL_PROGRAM_ID);
         this.unstakeItPoolAddress = USTAKE_IT_POOL_ADDRESS_MAINNET;
         this.unstakeProgramId = USTAKE_IT_PROGRAM_ID_MAINNET;
+        this.connection = new Connection(clusterApiUrl('testnet'));
+
+        break;
+
+      case 'devnet':
+        this.eSOLStakePoolAddress = new PublicKey(DEVNET_STAKEPOOL_ACCOUNT);
+        this.eSOLProgramId = new PublicKey(DEVNET_STAKEPOOL_PROGRAM_ID);
+        this.unstakeItPoolAddress = USTAKE_IT_POOL_ADDRESS_DEVNET;
+        this.unstakeProgramId = USTAKE_IT_PROG_ID_DEVNET;
+        this.connection = new Connection(DEVNET_RPC);
 
         break;
       case 'mainnet-beta':
@@ -48,6 +61,7 @@ export class ESolConfig {
         this.eSOLProgramId = new PublicKey(MAINNET_STAKEPOOL_PROGRAM_ID);
         this.unstakeItPoolAddress = USTAKE_IT_POOL_ADDRESS_TESTNET;
         this.unstakeProgramId = USTAKE_IT_PROGRAM_ID_TESTNET;
+        this.connection = new Connection(EVERSTAKE_RPC);
 
         StakePoolProgram.changeProgramId('EverSFw9uN5t1V8kS3ficHUcKffSjwpGzUSGd7mgmSks');
         break;

@@ -28,6 +28,9 @@ const eSol = new ESol('mainnet-beta');
 
 // initializes for testnet
 const eSol = new ESol('testnet');
+
+// initializes for devnet
+const eSol = new ESol('devnet');
 ```
 
 ### Deposit SOL Transaction

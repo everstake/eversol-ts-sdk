@@ -13,12 +13,12 @@ import {
   REFERRING_ACCOUNTS_LIST,
   TESTNET_STAKEPOOL_ACCOUNT,
   getESolBalance,
-  testingNetwork,
+  NETWORK_TYPE,
   referrerAccount,
 } from './test-environments';
 
 // settings
-const everSol = new ESol(testingNetwork);
+const everSol = new ESol(NETWORK_TYPE);
 const depositAmount = solToLamports(1);
 const undelegateAmount = 0.1;
 

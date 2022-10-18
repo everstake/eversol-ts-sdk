@@ -4,9 +4,8 @@ import { Provider, Wallet } from '@project-serum/anchor';
 import { ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, getAssociatedTokenAddress } from '@solana/spl-token';
 import { getTokenAccount, StakePoolAccount } from '../src/service/service';
 
-export const NETWORK_TYPE = 'testnet'; // you can change it for 'mainnet-beta'
+export const NETWORK_TYPE = 'testnet'; // you can change it for 'mainnet-beta or devnet'
 const API_ENDPOINT = clusterApiUrl(NETWORK_TYPE);
-export const testingNetwork = 'testnet';
 
 export const CONNECTION = new Connection(API_ENDPOINT);
 export const TESTNET_STAKEPOOL_ACCOUNT = 'w55eR1rNUjD1hLxvxsVtBDm98iPdSWTbLmTh8B1WA4k';
