@@ -1,6 +1,6 @@
 {
   "name": "@everstake/eversol-ts-sdk",
-  "version": "1.0.12",
+  "version": "1.0.13",
   "description": "Eversol ts sdk",
   "main": "eversol-ts-sdk/index.js",
   "types": "eversol-ts-sdk/index.d.js",
