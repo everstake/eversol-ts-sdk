@@ -1,3 +1,4 @@
+/* tslint:disable:no-console */
 import {
   PublicKey,
   Transaction,
@@ -32,6 +33,7 @@ import {
   getAssociatedTokenAddress,
 } from '@solana/spl-token';
 import createWithdrawStakeAccountInstruction from './service/createWithdrawStakeAccountInstruction';
+import getStakeAccountStatus from './service/getStakeAccountStatus';
 
 export class ESol {
   public readonly config: ESolConfig;
@@ -206,7 +208,11 @@ export class ESol {
     return transaction;
   }
 
-  async createUnDelegateSolTransaction(userAddress: PublicKey, eSolAmount: number, solWithdrawAuthority?: PublicKey) {
+  async createUnDelegateSolTransaction(
+    userAddress: PublicKey,
+    eSolAmount: number,
+    solWithdrawAuthority?: PublicKey,
+  ): Promise<Transaction> {
     const { connection } = this.config;
     const tokenOwner = userAddress;
     const solReceiver = userAddress;
@@ -420,7 +426,7 @@ export class ESol {
     withUnstakeIt = false,
     stakeReceiver?: PublicKey,
     poolTokenAccount?: PublicKey,
-  ) {
+  ): Promise<Transaction> {
     const { connection, unstakeItPoolAddress, unstakeProgramId } = this.config;
     const stakePoolAddress = this.config.eSOLStakePoolAddress;
     const stakePool = await getStakePoolAccount(connection, stakePoolAddress);
@@ -672,6 +678,47 @@ export class ESol {
     transaction.feePayer = userAddress;
     transaction.recentBlockhash = (await connection.getRecentBlockhash()).blockhash;
     transaction.sign(...signers);
+
+    return transaction;
+  }
+
+  async createWithdrawStakeAccountTransaction(
+    stakeAccountPubKey: PublicKey,
+    userWalletAddress: PublicKey,
+  ): Promise<Transaction> {
+    const { connection, unstakeItPoolAddress, unstakeProgramId } = this.config;
+    let accountStatus = 'Initialized';
+
+    try {
+      const stakeAccount = await connection.getAccountInfo(stakeAccountPubKey);
+
+      const { stake } = stakeAccount.account.data.parsed.info;
+      const { epoch } = connection.getEpochInfo();
+
+      if (stake) {
+        accountStatus = getStakeAccountStatus(
+          +stake.delegation.activationEpoch,
+          +epoch,
+          +stake.delegation.deactivationEpoch,
+        );
+      }
+    } catch (err) {
+      console.error(err);
+    }
+
+    const unstakeItInstructions = await createWithdrawStakeAccountInstruction(
+      connection,
+      unstakeItPoolAddress,
+      unstakeProgramId,
+      stakeAccountPubKey,
+      accountStatus,
+      userWalletAddress,
+    );
+
+    const transaction = new Transaction();
+    unstakeItInstructions.forEach((instruction: any) => transaction.add(instruction));
+    transaction.feePayer = userWalletAddress;
+    transaction.recentBlockhash = (await connection.getRecentBlockhash()).blockhash;
 
     return transaction;
   }

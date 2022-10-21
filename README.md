@@ -64,6 +64,13 @@ const delayedUnstakeTransaction = await eSol.createWithdrawSolTransaction(userAd
 // than sign and send the `transaction`
 ```
 
+### Withdraw Stake account
+```ts
+...
+const withdrawStakeAccountTransaction = await eSol.createWithdrawStakeAccountTransaction(stakeAccountPubKey, userWalletAddress)
+// than sign and send the `transaction`
+```
+
 ## Learn more
 
 - [Eversol web](https://eversol.one/)

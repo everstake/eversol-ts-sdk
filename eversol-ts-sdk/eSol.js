@@ -1,3 +1,4 @@
+/* tslint:disable:no-console */
 import { PublicKey, Transaction, Keypair, TransactionInstruction, SystemProgram, StakeProgram, } from '@solana/web3.js';
 import { ESolConfig } from './config';
 import { StakePoolProgram } from './service/stakepool-program';
@@ -9,6 +10,7 @@ import { DAO_STATE_LAYOUT, COMMUNITY_TOKEN_LAYOUT, REFERRER_LIST_LAYOUT } from '
 import { TRANSACTION_FEE, RENT_EXEMPTION_FEE } from './service/constants';
 import { ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, createApproveInstruction, getAssociatedTokenAddress, } from '@solana/spl-token';
 import createWithdrawStakeAccountInstruction from './service/createWithdrawStakeAccountInstruction';
+import getStakeAccountStatus from './service/getStakeAccountStatus';
 export class ESol {
     constructor(clusterType = 'testnet') {
         this.config = new ESolConfig(clusterType);
@@ -391,6 +393,27 @@ export class ESol {
         transaction.feePayer = userAddress;
         transaction.recentBlockhash = (await connection.getRecentBlockhash()).blockhash;
         transaction.sign(...signers);
+        return transaction;
+    }
+    async createWithdrawStakeAccountTransaction(stakeAccountPubKey, userWalletAddress) {
+        const { connection, unstakeItPoolAddress, unstakeProgramId } = this.config;
+        let accountStatus = 'Initialized';
+        try {
+            const stakeAccount = await connection.getAccountInfo(stakeAccountPubKey);
+            const { stake } = stakeAccount.account.data.parsed.info;
+            const { epoch } = connection.getEpochInfo();
+            if (stake) {
+                accountStatus = getStakeAccountStatus(+stake.delegation.activationEpoch, +epoch, +stake.delegation.deactivationEpoch);
+            }
+        }
+        catch (err) {
+            console.error(err);
+        }
+        const unstakeItInstructions = await createWithdrawStakeAccountInstruction(connection, unstakeItPoolAddress, unstakeProgramId, stakeAccountPubKey, accountStatus, userWalletAddress);
+        const transaction = new Transaction();
+        unstakeItInstructions.forEach((instruction) => transaction.add(instruction));
+        transaction.feePayer = userWalletAddress;
+        transaction.recentBlockhash = (await connection.getRecentBlockhash()).blockhash;
         return transaction;
     }
 }

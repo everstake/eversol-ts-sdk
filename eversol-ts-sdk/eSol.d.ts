@@ -6,4 +6,5 @@ export declare class ESol {
     createDepositSolTransactionWithReferrer(walletAddress: PublicKey, lamports: number, referrerAccount: PublicKey): Promise<Transaction>;
     createUnDelegateSolTransaction(userAddress: PublicKey, eSolAmount: number, solWithdrawAuthority?: PublicKey): Promise<Transaction>;
     createWithdrawSolTransaction(userAddress: PublicKey, eSolAmount: number, withUnstakeIt?: boolean, stakeReceiver?: PublicKey, poolTokenAccount?: PublicKey): Promise<Transaction>;
+    createWithdrawStakeAccountTransaction(stakeAccountPubKey: PublicKey, userWalletAddress: PublicKey): Promise<Transaction>;
 }
